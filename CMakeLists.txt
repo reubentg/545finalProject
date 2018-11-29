@@ -104,7 +104,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES final
-#  CATKIN_DEPENDS rospy std_msgs
+#  CATKIN_DEPENDS rospy std_msgsgit
 #  DEPENDS system_lib
 )
 

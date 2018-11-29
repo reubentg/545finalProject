@@ -20,9 +20,10 @@
    <!--
 	Launch a line_follower node here
    -->
-    <node pkg="lab1" type="line_follower.py" name="LineFollow" output="screen">
+    <node pkg="final" type="line_follower.py" name="LineFollow" output="screen">
         <param name="plan_topic" type="str" value="/planner_node/car_plan" />
         <param name="pose_topic" type="string" value="/sim_car_pose/pose" />
+        <param name="init_pose_topic" type="string" value="/initialpose" /> <!-- x=2500, y=640 -->
         <param name="plan_lookahead" type="int" value="5" />
         <param name="translation_weight" type="double" value="1.0"/>
         <param name="rotation_weight" type="double" value="1.0" />

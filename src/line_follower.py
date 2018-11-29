@@ -8,14 +8,18 @@ import time
 import rospy
 import numpy as np
 import matplotlib.pyplot as plt
-from geometry_msgs.msg import PoseArray, PoseStamped
+from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped
 from ackermann_msgs.msg import AckermannDriveStamped
+# add this to python2.7 in settings
+#/opt/ros/melodic/lib/python2.7/dist-packages
 
 import utils
+
 
 # The topic to publish control commands to
 PUB_TOPIC = '/vesc/high_level/ackermann_cmd_mux/input/nav_0'
 PUB_TOPIC_2 = '/plan_lookahead_follower/pose' # to publish plan lookahead follower to assist with troubleshooting
+MAP_TOPIC = 'static_map' # The service topic that will provide the map
 WINDOW_WIDTH = 5
 
 
@@ -43,7 +47,7 @@ class LineFollower:
     error_buff_length: The length of the buffer that is storing past error values
     speed: The speed at which the robot should travel
     """
-    def __init__(self, plan, pose_topic, plan_lookahead, translation_weight,
+    def __init__(self, plan, init_pose_topic, pose_topic, plan_lookahead, translation_weight,
                  rotation_weight, kp, ki, kd, error_buff_length, speed):
         # Store the passed parameters
         self.plan = plan
@@ -68,14 +72,30 @@ class LineFollower:
         print "plan[plan_lookahead]", self.plan[plan_lookahead]
         print "error_buff length: ", len(self.error_buff)
         print "error_buff: ", self.error_buff
-
+        print " TEST "
 
         # YOUR CODE HERE
         self.cmd_pub = rospy.Publisher(PUB_TOPIC, AckermannDriveStamped, queue_size=10)  # Create a publisher to PUB_TOPIC
         self.goal_pub = rospy.Publisher(PUB_TOPIC_2, PoseStamped, queue_size=10) # create a publisher for plan lookahead follower
 
+        # Create a publisher to publish the initial pose
+        self.init_pose_pub = rospy.Publisher(init_pose_topic, PoseWithCovarianceStamped, queue_size=1) # to publish init position x=2500, y=640
+        self.map_img, self.map_info = utils.get_map(MAP_TOPIC)  # Get and store the map
+        PWCS = PoseWithCovarianceStamped()  # create a PoseWithCovarianceStamped() msg
+        PWCS.header.stamp = rospy.Time.now()  # set header timestamp value
+        PWCS.header.frame_id = "map"  # set header frame id value
+
+        temp_pose = utils.map_to_world([2500.0, 640.0, 0.0], self.map_info)#2500
+        PWCS.pose.pose.position.x = temp_pose[0]
+        PWCS.pose.pose.position.y = temp_pose[1]
+        PWCS.pose.pose.position.z = 0
+        PWCS.pose.pose.orientation = utils.angle_to_quaternion(0)  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
+        print "PWCS", PWCS
+        self.init_pose_pub.publish(PWCS)  # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
+
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
+
   
     '''
     Computes the error based on the current pose of the car
@@ -299,10 +319,13 @@ def main():
     """
     # YOUR CODE HERE
     plan_topic = rospy.get_param('~plan_topic')  # Default val: '/planner_node/car_plan'
+    init_pose_topic = rospy.get_param('~init_pose_topic')  # Default val: 'initialpose'
     pose_topic = rospy.get_param('~pose_topic')  # Default val: '/sim_car_pose/pose'
+
     plan_lookahead = rospy.get_param('~plan_lookahead')  # Starting val: 5
     translation_weight = rospy.get_param('~translation_weight')  # Starting val: 1.0
     rotation_weight = rospy.get_param('~rotation_weight')  # Starting val: 0.0
+
     kp = rospy.get_param('~kp')  # Startinig val: 1.0
     ki = rospy.get_param('~ki')  # Starting val: 0.0
     kd = rospy.get_param('~kd')  # Starting val: 0.0
@@ -336,7 +359,7 @@ def main():
 
 
 
-    lf = LineFollower(plan_array, pose_topic, plan_lookahead, translation_weight,
+    lf = LineFollower(plan_array, init_pose_topic, pose_topic, plan_lookahead, translation_weight,
                       rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
 
     rospy.spin()  # Prevents node from shutting down
