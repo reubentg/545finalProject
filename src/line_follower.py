@@ -26,6 +26,9 @@ WINDOW_WIDTH = 5
 INIT_POSE_TOPIC = "/initialpose"
 GOAL_POSE_TOPIC = "/move_base_simple/goal"
 PLAN_POSE_ARRAY_TOPIC = "/planner_node/car_plan"
+PLAN_POSE_ARRAY_TOPIC1 = "/planner_node/car_plan1"
+PLAN_POSE_ARRAY_TOPIC2 = "/planner_node/car_plan2"
+PLAN_POSE_ARRAY_TOPIC3 = "/planner_node/car_plan3"
 
 '''
 Follows a given plan using constant velocity and PID control of the steering angle
@@ -331,6 +334,7 @@ def get_plan(initial_pose, goal_pose):
     # Create a LineFollower object
     raw_input("Init Pose and Goal Pose should be visualized now...")  # Waits for ENTER key press
     raw_plan = rospy.wait_for_message(PLAN_POSE_ARRAY_TOPIC, PoseArray)
+    print "raw_plan", type(raw_plan)
     return raw_plan
 
 def main():
@@ -357,56 +361,60 @@ def main():
     kd = rospy.get_param('~kd')  # Starting val: 0.0
     error_buff_length = rospy.get_param('~error_buff_length')  # Starting val: 10
     speed = rospy.get_param('~speed')  # Default val: 1.0
-    
-    
+
+    individual_plan_parts = []
 
     # Make Plan
     initial_pose = [2500.0, 640.0, -0.1159]
     # initial_pose = [540.0, 835.0, 0.0]
     goal_pose = [2600.0, 660.0, 0.0]
     cool_plan = get_plan(initial_pose, goal_pose)
+    individual_plan_parts.append(cool_plan)
 
     # Make Plan
     initial_pose = [1880, 440.0, 0.0]
     # initial_pose = [540.0, 835.0, 0.0]
     goal_pose = [1435.0, 545.0, 0.0]
     cool_plan = get_plan(initial_pose, goal_pose)
+    individual_plan_parts.append(cool_plan)
 
-    # Make Plan
-    initial_pose = [1250.0, 460.0, 0.0]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [540.0, 835.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose)
+    # # Make Plan
+    # initial_pose = [1250.0, 460.0, 0.0]
+    # # initial_pose = [540.0, 835.0, 0.0]
+    # goal_pose = [540.0, 835.0, 0.0]
+    # cool_plan = get_plan(initial_pose, goal_pose)
+    # individual_plan_parts.append(cool_plan)
 
-    raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
+    # raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
 
     # Use rospy.wait_for_message to get the plan msg
     # Convert the plan msg to a list of 3-element numpy arrays
     #     Each array is of the form [x,y,theta]
     # Create a LineFollower object
 
-    raw_plan = rospy.wait_for_message(plan_topic, PoseArray)
-
-    # raw_plan is a PoseArray which has an array of geometry_msgs/Pose called poses
-
+    # raw_plan = rospy.wait_for_message(plan_topic, PoseArray)
     plan_array = []
-
-    for pose in raw_plan.poses:
-        plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+    path_part_pub = []
+    for i, raw_plan in enumerate(individual_plan_parts):
+        path_part_pub.append(rospy.Publisher("CoolPlan" + str(i), PoseArray))  # create a publisher for plan lookahead follower
+        path_part_pub[i].publish(raw_plan)
+        print "raw_plan published", raw_plan
+        for pose in raw_plan.poses:
+            plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
 
     print "Len of plan array: %d" % len(plan_array)
     # print plan_array
 
     try:
-        if raw_plan:
+        if cool_plan:
             pass
     except rospy.ROSException:
         exit(1)
 
 
 
-    lf = LineFollower(plan_array, INIT_POSE_TOPIC, pose_topic, GOAL_POSE_TOPIC, PLAN_POSE_ARRAY_TOPIC, plan_lookahead, translation_weight,
-                      rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
+    # lf = LineFollower(plan_array,  pose_topic, plan_lookahead, translation_weight,
+    #                   rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
 
     rospy.spin()  # Prevents node from shutting down
 
