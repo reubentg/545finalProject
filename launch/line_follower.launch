@@ -17,21 +17,20 @@
     speed: The speed at which the robot should travel
     -->
 
-   <!--
-	Launch a line_follower node here
-   -->
+    <!--
+     Launch a line_follower node here
+    -->
     <node pkg="final" type="line_follower.py" name="LineFollow" output="screen">
-        <param name="plan_topic" type="str" value="/planner_node/car_plan" />
-        <param name="pose_topic" type="string" value="/sim_car_pose/pose" />
-        <param name="init_pose_topic" type="string" value="/initialpose" /> <!-- x=2500, y=640 -->
-        <param name="plan_lookahead" type="int" value="5" />
+        <param name="plan_topic" type="str" value="/planner_node/car_plan"/>
+        <param name="pose_topic" type="string" value="/sim_car_pose/pose"/>
+        <param name="plan_lookahead" type="int" value="5"/>
         <param name="translation_weight" type="double" value="1.0"/>
-        <param name="rotation_weight" type="double" value="1.0" />
-        <param name="kp" type="double" value="0.5" />
-        <param name="ki" type="double" value="1.5" />
-        <param name="kd" type="double" value="5.5" />
-        <param name="error_buff_length" type="int" value="10" />
-        <param name="speed" type="double" value="1.0" />
+        <param name="rotation_weight" type="double" value="1.0"/>
+        <param name="kp" type="double" value="0.5"/>
+        <param name="ki" type="double" value="1.5"/>
+        <param name="kd" type="double" value="5.5"/>
+        <param name="error_buff_length" type="int" value="10"/>
+        <param name="speed" type="double" value="1.0"/>
     </node>
 
 </launch>
