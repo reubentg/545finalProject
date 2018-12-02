@@ -125,8 +125,10 @@ def main():
                     # blue path
                     [1880, 440,-150 * np.pi / 180.0], # REQUIRED Point 2
                     # purple path
-                    [1520, 600, -170 * np.pi / 180.0], # end of purple path
+                    [1575, 555, -170 * np.pi / 180.0], # end of purple path
+                    [1550, 560, -171 * np.pi / 180.0],  # end of purple path
                     # orange path
+                    [1520, 560, -175 * np.pi / 180.0],
                     [1435, 545, 160 * np.pi / 180.0], # REQUIRED Point 3
                     [1250, 460, 160 * np.pi / 180.0], # REQUIRED Point 4
                     [1050, 450, -160.0 * np.pi / 180.0],
@@ -135,8 +137,8 @@ def main():
                     ] # REQUIRED Point 5 (END)
 
     for i in range(0, len(path_points) - 1):
-        rospy.sleep(15)  # wait for planner_node to
-        # raw_input("Enter to Continue")
+        rospy.sleep(15)  # wait for planner_node to load or respawnn
+        # raw_input("\n\nPRESS ENTER WHEN READY TO PLAN\n\n")
         initial_pose = path_points[i]
         goal_pose = path_points[i + 1]
         individual_plan_parts.append(get_plan(initial_pose, goal_pose, i))
@@ -183,9 +185,10 @@ def main():
     #     PA.poses.append(P)
     PA_pub = rospy.Publisher(PLAN_POSE_ARRAY_TOPIC, PoseArray, queue_size=1)
     for i in range(0, 5):
-        print "PA", type(PA), PA
-        PA_pub.publish(PA)
         rospy.sleep(0.5)
+        PA_pub.publish(PA)
+    os.system('rosnode kill planner_node')
+    print "\n\n DONE \n\n"
 
 if __name__ == '__main__':
     main()
