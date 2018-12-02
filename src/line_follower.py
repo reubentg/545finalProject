@@ -4,9 +4,10 @@ import collections
 import sys
 import math
 import time
-
+import os
 import rospy
 import numpy as np
+from threading import Lock
 import matplotlib.pyplot as plt
 from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped
 from ackermann_msgs.msg import AckermannDriveStamped
@@ -297,12 +298,14 @@ class LineFollower:
         # Send the control message
         self.cmd_pub.publish(ads)
 
-def get_plan(initial_pose, goal_pose):
-    print "inside get_plan"
+
+def get_plan(initial_pose, goal_pose, initial_pose_topic, goal_pose_topic, plan_array_topic):
+
+    print "inside get_plan with ", initial_pose_topic, goal_pose_topic, plan_array_topic
     # Create a publisher to publish the initial pose
-    init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped, queue_size=1)  # to publish init position x=2500, y=640
+    init_pose_pub = rospy.Publisher(initial_pose_topic, PoseWithCovarianceStamped, queue_size=1)  # to publish init position x=2500, y=640
     # Create a publisher to publish the goal pose
-    goal_pose_pub = rospy.Publisher(GOAL_POSE_TOPIC, PoseStamped, queue_size=1)  # create a publisher for goal pose
+    goal_pose_pub = rospy.Publisher(goal_pose_topic, PoseStamped, queue_size=1)  # create a publisher for goal pose
 
     map_img, map_info = utils.get_map(MAP_TOPIC)  # Get and store the map
     PWCS = PoseWithCovarianceStamped()  # create a PoseWithCovarianceStamped() msg
@@ -314,7 +317,7 @@ def get_plan(initial_pose, goal_pose):
     PWCS.pose.pose.position.y = temp_pose[1]
     PWCS.pose.pose.position.z = 0
     PWCS.pose.pose.orientation = utils.angle_to_quaternion(temp_pose[2])  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
-    print "PWCS", PWCS
+    # print "PWCS", PWCS
     init_pose_pub.publish(PWCS)  # publish initial pose, now you can add a PoseWithCovariance with topic of "/initialpose" in rviz
 
     PS = PoseStamped()  # create a PoseStamped() msg
@@ -327,14 +330,16 @@ def get_plan(initial_pose, goal_pose):
     PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
     PS.pose.orientation = utils.angle_to_quaternion(temp_pose[2])
     goal_pose_pub.publish(PS)
+    print 'publishing complete; should start planning now'
 
     # Use rospy.wait_for_message to get the plan msg
     # Convert the plan msg to a list of 3-element numpy arrays
     #     Each array is of the form [x,y,theta]
     # Create a LineFollower object
-    raw_input("Init Pose and Goal Pose should be visualized now...")  # Waits for ENTER key press
-    raw_plan = rospy.wait_for_message(PLAN_POSE_ARRAY_TOPIC, PoseArray)
+    # raw_input("Init Pose and Goal Pose should be visualized now...")  # Waits for ENTER key press
+    raw_plan = rospy.wait_for_message(plan_array_topic, PoseArray)
     print "raw_plan", type(raw_plan)
+
     return raw_plan
 
 def main():
@@ -368,24 +373,49 @@ def main():
     initial_pose = [2500.0, 640.0, -0.1159]
     # initial_pose = [540.0, 835.0, 0.0]
     goal_pose = [2600.0, 660.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose)
+
+    raw_input("\n\nPress Enter when ready to start planning...\n\n")  # Waits for ENTER key press
+
+    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose0', '/move_base_simple0/goal', '/planner_node0/car_plan')
     individual_plan_parts.append(cool_plan)
+
+    # os.system('rosnode kill /planner_node0')
 
     # Make Plan
-    initial_pose = [1880, 440.0, 0.0]
+    initial_pose = [2600.0, 660.0, 0.0]
     # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [1435.0, 545.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose)
+    goal_pose = [1880.0, 440.0, 0.0]
+    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose1', '/move_base_simple1/goal', '/planner_node1/car_plan')
     individual_plan_parts.append(cool_plan)
 
-    # # Make Plan
-    # initial_pose = [1250.0, 460.0, 0.0]
-    # # initial_pose = [540.0, 835.0, 0.0]
-    # goal_pose = [540.0, 835.0, 0.0]
-    # cool_plan = get_plan(initial_pose, goal_pose)
-    # individual_plan_parts.append(cool_plan)
+    # os.system('rosnode kill /planner_node1')
 
-    # raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
+    # # Make Plan
+    initial_pose = [1880.0, 440.0, 0.0]
+    # initial_pose = [540.0, 835.0, 0.0]
+    goal_pose = [1435.0, 545.0, 0.0]
+    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose2', '/move_base_simple2/goal', '/planner_node2/car_plan')
+    # os.system('rosnode kill /planner_node2')
+
+    # # Make Plan
+    initial_pose = [1435.0, 545.0, 0.0]
+    # initial_pose = [540.0, 835.0, 0.0]
+    goal_pose = [1250.0, 460.0, 0.0]
+    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose3', '/move_base_simple3/goal', '/planner_node3/car_plan')
+    individual_plan_parts.append(cool_plan)
+
+    # os.system('rosnode kill /planner_node3')
+
+    # # Make Plan
+    initial_pose = [1250.0, 460.0, 0.0]
+    # initial_pose = [540.0, 835.0, 0.0]
+    goal_pose = [540.0, 835.0, 0.0]
+    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose4', '/move_base_simple4/goal', '/planner_node4/car_plan')
+    individual_plan_parts.append(cool_plan)
+
+    # os.system('rosnode kill /planner_node4')
+
+    raw_input("Press Enter to when planning is done...")  # Waits for ENTER key press
 
     # Use rospy.wait_for_message to get the plan msg
     # Convert the plan msg to a list of 3-element numpy arrays
