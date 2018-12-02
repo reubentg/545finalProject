@@ -17,6 +17,7 @@ from ackermann_msgs.msg import AckermannDriveStamped
 # /opt/ros/melodic/lib/python2.7/dist-packages
 
 import utils
+import rospkg
 
 # The topics to get plan
 MAP_TOPIC = 'static_map'  # The service topic that will provide the map
@@ -24,6 +25,9 @@ INIT_POSE_TOPIC = "/initialpose"
 GOAL_POSE_TOPIC = "/move_base_simple/goal"
 PLAN_POSE_ARRAY_TOPIC = "/planner_node/car_plan"
 
+rospack = rospkg.RosPack()
+RACECAR_PKG_PATH = rospack.get_path('racecar')
+PLANNER_PKG_PATH = rospack.get_path('planning_utils')
 
 def get_plan(initial_pose, goal_pose, counter):
     # Create a publisher to publish the initial pose
@@ -96,7 +100,8 @@ def main():
     # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
     uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
     roslaunch.configure_logging(uuid)
-    map_server_launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/tim/car_ws/src/racecar_base_public/racecar/launch/includes/common/map_server.launch"])
+    map_server_launch = \
+        roslaunch.parent.ROSLaunchParent(uuid, [RACECAR_PKG_PATH + "/launch/includes/common/map_server.launch"])
 
     map_server_launch.start()
 
@@ -104,8 +109,8 @@ def main():
     # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
     uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
     roslaunch.configure_logging(uuid)
-    planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [
-        "/home/tim/car_ws/src/racecar_base_public/planning_utils/launch/planner_node.launch"])
+    planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [PLANNER_PKG_PATH +
+        "/launch/planner_node.launch"])
     planner_node_launch.start()
 
     # start rviz by opening a new terminal in a new tab and running command "rviz"
