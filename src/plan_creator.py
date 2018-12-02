@@ -23,12 +23,6 @@ MAP_TOPIC = 'static_map'  # The service topic that will provide the map
 INIT_POSE_TOPIC = "/initialpose"
 GOAL_POSE_TOPIC = "/move_base_simple/goal"
 PLAN_POSE_ARRAY_TOPIC = "/planner_node/car_plan"
-PLAN_POSE_ARRAY_TOPIC1 = "/planner_node/car_plan1"
-PLAN_POSE_ARRAY_TOPIC2 = "/planner_node/car_plan2"
-PLAN_POSE_ARRAY_TOPIC3 = "/planner_node/car_plan3"
-
-def test(msg):
-    print "initial pose msg: ", msg
 
 
 def get_plan(initial_pose, goal_pose, counter):
@@ -86,82 +80,112 @@ def get_plan(initial_pose, goal_pose, counter):
     raw_plan = rospy.wait_for_message(PLAN_POSE_ARRAY_TOPIC, PoseArray)
     print "\nPLAN COMPUTED! of type:", type(raw_plan)
 
-    for i in range(0, 5):
-        path_part_pub = rospy.Publisher("/CoolPlan/plan" + str(counter), PoseArray,
-                                         queue_size=1)  # create a publisher for plan lookahead follower
-    rospy.sleep(1)
-    path_part_pub.publish(raw_plan)
-    rospy.sleep(1)
+    path_part_pub = rospy.Publisher("/CoolPlan/plan" + str(counter), PoseArray,
+                                    queue_size=1)  # create a publisher for plan lookahead follower
+    for i in range(0, 4):
+        path_part_pub.publish(raw_plan)
+        rospy.sleep(0.4)
+
     return raw_plan
 
 
 def main():
     rospy.init_node('plan_creator', anonymous=True)  # Initialize the node
-    # time.sleep(12)
-    # raw_input("\n\nPress enter if Ready to plan\n\n")
-    sub = rospy.Subscriber(INIT_POSE_TOPIC, PoseWithCovarianceStamped, test)
 
-    map_img, map_info = utils.get_map(MAP_TOPIC)  # Get and store the map
+    # launch nodes from python
+    # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
+    uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    roslaunch.configure_logging(uuid)
+    map_server_launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/tim/car_ws/src/racecar_base_public/racecar/launch/includes/common/map_server.launch"])
+
+    map_server_launch.start()
+
+    # launch nodes from python
+    # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
+    uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    roslaunch.configure_logging(uuid)
+    planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [
+        "/home/tim/car_ws/src/racecar_base_public/planning_utils/launch/planner_node.launch"])
+    planner_node_launch.start()
+
+    # start rviz by opening a new terminal in a new tab and running command "rviz"
+    subprocess.call('gnome-terminal --tab --execute rviz', shell=True)
 
     individual_plan_parts = []
 
     # [x, y, theta (given in deg and coverted to rad)
-    path_points =  [[2500, 640, -11.3099 * np.pi / 180.0],
-                    [2600, 660, 30.0 * np.pi / 180.0],
-                    [2410, 490, 160 * np.pi / 180.0],
-                    [1880, 440,-150 * np.pi / 180.0],
-                    [1435, 545, 160 * np.pi / 180.0],
-                    [1250, 460, 160 * np.pi / 180.0],
+    path_points =  [
+                    [2500, 640, -11.3099 * np.pi / 180.0], # INITIAL Point
+                    # orange path
+                    [2600, 660, 30.0 * np.pi / 180.0], # REQUIRED Point 1
+                    # yellow path
+                    [2410, 490, 160 * np.pi / 180.0], # end of yellow path
+                    # green path
+                    [2000, 400, -150 * np.pi / 180.0], # end of green path
+                    # blue path
+                    [1880, 440,-150 * np.pi / 180.0], # REQUIRED Point 2
+                    # purple path
+                    [1520, 600, -170 * np.pi / 180.0], # end of purple path
+                    # orange path
+                    [1435, 545, 160 * np.pi / 180.0], # REQUIRED Point 3
+                    [1250, 460, 160 * np.pi / 180.0], # REQUIRED Point 4
                     [1050, 450, -160.0 * np.pi / 180.0],
                     [650.0, 650.0, -120 * np.pi / 180.0],
-                    [540, 835, -120 * np.pi / 180.0]]
+                    [540, 835, -120 * np.pi / 180.0]
+                    ] # REQUIRED Point 5 (END)
 
     for i in range(0, len(path_points) - 1):
+        rospy.sleep(15)  # wait for planner_node to
         # raw_input("Enter to Continue")
         initial_pose = path_points[i]
         goal_pose = path_points[i + 1]
         individual_plan_parts.append(get_plan(initial_pose, goal_pose, i))
-        os.system('rosnode kill planner_node')
-        rospy.sleep(17) # wait for planner_node to
+        if i != len(path_points) - 2:
+            os.system('rosnode kill planner_node')
 
-    # # Make Plan
-    # initial_pose = [2500.0, 640.0, -0.1159]
-    # # initial_pose = [540.0, 835.0, 0.0]
-    # goal_pose = [2600.0, 660.0, 0.0]
-    # cool_plan = get_plan(initial_pose, goal_pose)
-    # individual_plan_parts.append(cool_plan)
-    #
-    # # Make Plan
-    # initial_pose = [1880, 440.0, 0.0]
-    # # initial_pose = [540.0, 835.0, 0.0]
-    # goal_pose = [1435.0, 545.0, 0.0]
-    # cool_plan = get_plan(initial_pose, goal_pose)
-    # individual_plan_parts.append(cool_plan)
-    #
-    # # Make Plan
-    # initial_pose = [1250.0, 460.0, 0.0]
-    # # initial_pose = [540.0, 835.0, 0.0]
-    # goal_pose = [540.0, 835.0, 0.0]
-    # cool_plan = get_plan(initial_pose, goal_pose)
-    # individual_plan_parts.append(cool_plan)
 
-    # raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
 
-    # Use rospy.wait_for_message to get the plan msg
-    # Convert the plan msg to a list of 3-element numpy arrays
-    #     Each array is of the form [x,y,theta]
-    # Create a LineFollower object
-
-    # raw_plan = rospy.wait_for_message(plan_topic, PoseArray)
     plan_array = []
-    path_part_pub = []
+    # Read http://docs.ros.org/jade/api/geometry_msgs/html/msg/PoseArray.html
+    PA = PoseArray()  # create a PoseArray() msg
+    PA.header.stamp = rospy.Time.now()  # set header timestamp value
+    PA.header.frame_id = "map"  # set header frame id value
+    PA.poses = []
     for i, raw_plan in enumerate(individual_plan_parts):
         print "\nraw_plan ", i, " published of type: ", type(raw_plan)
         for pose in raw_plan.poses:
-            plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+            # plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+            P = Pose()
+            P.position.x = pose.position.x
+            P.position.y = pose.position.y
+            P.position.z = 0
+            P.orientation = pose.orientation
 
-    # rospy.spin()  # Prevents node from shutting down
-    print "DONE"
+            PA.poses.append(P)
+
+    # create a message containing entire plan with all sub parts combined
+    # entire_plan_msg = PoseArray()
+    # entire_plan_msg.poses = plan_array
+
+    # # Read http://docs.ros.org/jade/api/geometry_msgs/html/msg/PoseArray.html
+    # PA = PoseArray()  # create a PoseArray() msg
+    # PA.header.stamp = rospy.Time.now()  # set header timestamp value
+    # PA.header.frame_id = "map"  # set header frame id value
+    # PA.poses =[]
+    #
+    # for pose in plan_array:  # for pose in range(0, 300) to show all, or range(299,300) to show only final pose
+    #     P = Pose()
+    #     P.position.x = pose[0]
+    #     P.position.y = pose[1]
+    #     P.position.z = 0
+    #     P.orientation = pose[2]
+    #
+    #     PA.poses.append(P)
+    PA_pub = rospy.Publisher(PLAN_POSE_ARRAY_TOPIC, PoseArray, queue_size=1)
+    for i in range(0, 5):
+        print "PA", type(PA), PA
+        PA_pub.publish(PA)
+        rospy.sleep(0.5)
 
 if __name__ == '__main__':
     main()
