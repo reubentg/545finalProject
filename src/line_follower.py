@@ -11,8 +11,7 @@ import subprocess
 import rospy
 import rospkg
 import numpy as np
-import matplotlib.pyplot as plt
-from geometry_msgs.msg import PoseArray, PoseStamped
+from geometry_msgs.msg import PoseArray, PoseStamped, Pose
 from ackermann_msgs.msg import AckermannDriveStamped
 
 import utils
@@ -20,6 +19,7 @@ import utils
 rospack = rospkg.RosPack()
 RACECAR_PKG_PATH = rospack.get_path('racecar')
 PLANNER_PKG_PATH = rospack.get_path('planning_utils')
+CURRENT_PKG_PATH = rospack.get_path('final')
 
 # The topic to publish control commands to
 PUB_TOPIC = '/vesc/high_level/ackermann_cmd_mux/input/nav_0'
@@ -394,17 +394,60 @@ def main():
 
     # load plan_array
     # load raw_plan msg (PoseArray)
-    loaded_vars = pickle.load( open("/home/tim/car_ws/src/final/saved_plans/plan2", "r"))
+    loaded_vars = pickle.load(open(CURRENT_PKG_PATH + "/saved_plans/plan2", "r"))
     plan_array = loaded_vars[0]
     raw_plan = loaded_vars[1]
+
+    print len(plan_array), type(plan_array)
+
+    plan_array_new = []
+
+    # with open(CURRENT_PKG_PATH + "/saved_plans/eggs.csv", 'rb') as csvfile:
+    #     plan_reader = csv.reader(csvfile, delimiter=',')
+    #     for row in plan_reader:
+    #         plan_array_new.append(np.array(row))
+
+
+    total_distance = 0.0
+    for i in range(len(plan_array) - 1):
+        total_distance += np.sqrt(np.square(plan_array[i][0] - plan_array[i+1][0]) + np.square(plan_array[i][1] - plan_array[i+1][1]))
+
+    print 'Total distance ' + str(total_distance)
+    avg_distance = total_distance / len(plan_array)
+    print 'Average distance is ' + str(avg_distance)
+
+    for i in range(len(plan_array) - 1):
+        try:
+            current_distance = np.sqrt(np.square(plan_array[i][0] - plan_array[i+1][0]) + np.square(plan_array[i][1] - plan_array[i+1][1]))
+            if current_distance < avg_distance:
+                plan_array_new.append(plan_array.pop(i+1))
+                i -= 1
+        except IndexError:
+            print 'index error %d' % i
+    print len(plan_array)
+    raw_input('waiting...')
+
+    PA = PoseArray()  # create a PoseArray() msg
+    PA.header.stamp = rospy.Time.now()  # set header timestamp value
+    PA.header.frame_id = "map"  # set header frame id value
+    PA.poses = []
+    for pose in plan_array:
+        P = Pose()
+        P.position.x = float(pose[0])
+        P.position.y = float(pose[1])
+        P.position.z = 0
+        P.orientation = utils.angle_to_quaternion(float(pose[2]))
+
+        PA.poses.append(P)
 
 
     # visualize loaded plan
     PA_pub = rospy.Publisher("/LoadedPlan", PoseArray, queue_size=1)
     for i in range(0, 5):
         rospy.sleep(0.5)
-        PA_pub.publish(raw_plan)
+        PA_pub.publish(PA)
 
+    raw_input('waiting...')
 
 
     print "Len of plan array: %d" % len(plan_array)
