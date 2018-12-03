@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 
-import collections
-import sys
-import math
-import time
+
 import pickle
-import roslaunch
-import subprocess
-
-import rospy
 import rospkg
-import numpy as np
-from geometry_msgs.msg import PoseArray, PoseStamped, Pose
-from ackermann_msgs.msg import AckermannDriveStamped
-
-import utils
 
 rospack = rospkg.RosPack()
 RACECAR_PKG_PATH = rospack.get_path('racecar')
 PLANNER_PKG_PATH = rospack.get_path('planning_utils')
 CURRENT_PKG_PATH = rospack.get_path('final')
 
+import collections
+import math
+import time
+
+import rospy
+import numpy as np
+import matplotlib.pyplot as plt
+from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped
+from ackermann_msgs.msg import AckermannDriveStamped
+
+import utils
+
 # The topic to publish control commands to
 PUB_TOPIC = '/vesc/high_level/ackermann_cmd_mux/input/nav_0'
-PUB_TOPIC_2 = '/plan_lookahead_follower/pose' # to publish plan lookahead follower to assist with troubleshooting
+PUB_TOPIC_2 = '/plan_lookahead_follower/pose'  # to publish plan lookahead follower to assist with troubleshooting
 WINDOW_WIDTH = 5
-
+INIT_POSE_TOPIC = "/initialpose"
 
 '''
 Follows a given plan using constant velocity and PID control of the steering angle
@@ -33,7 +33,6 @@ Follows a given plan using constant velocity and PID control of the steering ang
 
 
 class LineFollower:
-
     """
     Initializes the line follower
     plan: A list of length T that represents the path that the robot should follow
@@ -51,14 +50,15 @@ class LineFollower:
     error_buff_length: The length of the buffer that is storing past error values
     speed: The speed at which the robot should travel
     """
+
     def __init__(self, plan, pose_topic, plan_lookahead, translation_weight,
                  rotation_weight, kp, ki, kd, error_buff_length, speed):
         # Store the passed parameters
         self.plan = plan
         self.plan_lookahead = plan_lookahead
         # Normalize translation and rotation weights
-        self.translation_weight = translation_weight / (translation_weight+rotation_weight)
-        self.rotation_weight = rotation_weight / (translation_weight+rotation_weight)
+        self.translation_weight = translation_weight / (translation_weight + rotation_weight)
+        self.rotation_weight = rotation_weight / (translation_weight + rotation_weight)
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -71,46 +71,46 @@ class LineFollower:
         self.found_closest_point = False
         self.total_error_list = []
 
-        # print "line_follower Initialized!"
-        # print "plan[0]", self.plan[0]
-        # print "plan_lookahead", self.plan_lookahead
-        # print "plan[plan_lookahead]", self.plan[plan_lookahead]
-        # print "error_buff length: ", len(self.error_buff)
-        # print "error_buff: ", self.error_buff
-
+        print "line_follower Initialized!"
+        print "plan[0]", self.plan[0]
+        print "plan[plan_lookahead]", self.plan[plan_lookahead]
+        print "error_buff length: ", len(self.error_buff)
+        print "error_buff: ", self.error_buff
 
         # YOUR CODE HERE
-        self.cmd_pub = rospy.Publisher(PUB_TOPIC, AckermannDriveStamped, queue_size=10)  # Create a publisher to PUB_TOPIC
-        self.goal_pub = rospy.Publisher(PUB_TOPIC_2, PoseStamped, queue_size=10) # create a publisher for plan lookahead follower
+        self.cmd_pub = rospy.Publisher(PUB_TOPIC, AckermannDriveStamped,
+                                       queue_size=10)  # Create a publisher to PUB_TOPIC
+        self.goal_pub = rospy.Publisher(PUB_TOPIC_2, PoseStamped,
+                                        queue_size=10)  # create a publisher for plan lookahead follower
 
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
 
-        # set initial car pose to start pose
+        # Create a publisher to publish the initial pose
+        init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped,
+                                        queue_size=1)  # to publish init position x=2500, y=640
+        PWCS = PoseWithCovarianceStamped()  # create a PoseWithCovarianceStamped() msg
+        PWCS.header.stamp = rospy.Time.now()  # set header timestamp value
+        PWCS.header.frame_id = "map"  # set header frame id value
 
-
-        # raw_input("Wait")
-        PS = PoseStamped()  # create a PoseStamped() msg
-        PS.header.stamp = rospy.Time.now()  # set header timestamp value
-        PS.header.frame_id = "map"  # set header frame id value
-        PS.pose.position.x = plan[0][0]
-        PS.pose.position.y = plan[0][1]
-        PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
-        PS.pose.orientation = utils.angle_to_quaternion(plan[0][2])
-
-        car_pose_pub = rospy.Publisher(pose_topic, PoseStamped, queue_size=1)
-        for i in range(0, 5):
+        PWCS.pose.pose.position.x = plan[0][0]
+        PWCS.pose.pose.position.y = plan[0][1]
+        PWCS.pose.pose.position.z = 0
+        PWCS.pose.pose.orientation = utils.angle_to_quaternion(plan[0][2])
+        for i in range(0, 1):
             rospy.sleep(0.5)
-            car_pose_pub.publish(PS)
-        print "Set INITIAL Pose to ", PS
+            init_pose_pub.publish(
+                PWCS)  # publish initial pose, now you can add a PoseWithCovariance with topic of "/initialpose" in rviz
 
-  
+
     '''
     Computes the error based on the current pose of the car
     cur_pose: The current pose of the car, represented as a numpy array [x,y,theta]
     Returns: (False, 0.0) if the end of the plan has been reached. Otherwise, returns
            (True, E) - where E is the computed error
     '''
+
+
     def compute_error(self, cur_pose):
         """
         Find the first element of the plan that is in front of the robot, and remove
@@ -125,9 +125,10 @@ class LineFollower:
         # check the leftmost pose in the plan pose-array and if it is behind the car then delete it
         if len(self.plan) > 0:
 
-            left_edge = (cur_pose[2] + np.pi / 2) * 180 / 3.14 # deg
-            right_edge = (cur_pose[2] - np.pi / 2) * 180 / 3.14 # deg
-            angle_robot_path_point = math.atan2(cur_pose[1] - self.plan[0][1], cur_pose[0] - self.plan[0][0]) * 180 / 3.14 # deg
+            left_edge = (cur_pose[2] + np.pi / 2) * 180 / 3.14  # deg
+            right_edge = (cur_pose[2] - np.pi / 2) * 180 / 3.14  # deg
+            angle_robot_path_point = math.atan2(cur_pose[1] - self.plan[0][1],
+                                                cur_pose[0] - self.plan[0][0]) * 180 / 3.14  # deg
 
             # for troubleshooting if path points are not deleted correctly
             # converted angles from rad to deg for easier troubleshooting
@@ -139,24 +140,34 @@ class LineFollower:
             # print("angle of path point to robot vector",angle_robot_path_point)
             # print("path_point yaw",self.plan[0][2] * 180 / 3.14)
 
-            behind = (angle_robot_path_point > right_edge and angle_robot_path_point < left_edge) # is path point behind robot?
-            path_pose_similar_direction = (self.plan[0][2] > right_edge and self.plan[0][2] < left_edge) # is path point in similar direction as robot?
-            if behind and path_pose_similar_direction and len(self.plan) > 0: # delete point if behind robot, similar direction, and not last point in path
-                print "delete element: ", len(self.plan) # for troubleshooting, show path points before deleting
-                self.plan.pop(0) # delete the first element in the path, since that point is behind robot and it's direction is similar to robot
-                print "element deleted? : ", len(self.plan) # for troubleshooting, show path points after deleting
+            behind = (
+                    angle_robot_path_point > right_edge and angle_robot_path_point < left_edge)  # is path point behind robot?
+            path_pose_similar_direction = (self.plan[0][2] > right_edge and self.plan[0][
+                2] < left_edge)  # is path point in similar direction as robot?
+            path_pose_similar_direction = True
+            if behind and path_pose_similar_direction and len(
+                    self.plan) > 0:  # delete point if behind robot, similar direction, and not last point in path
+                print "delete element: ", len(self.plan)  # for troubleshooting, show path points before deleting
+                self.plan.pop(
+                    0)  # delete the first element in the path, since that point is behind robot and it's direction is similar to robot
+                print "element deleted? : ", len(self.plan)  # for troubleshooting, show path points after deleting
 
-            # if len(self.plan) > 0:
-            #     PS = PoseStamped() # create a PoseStamped() msg
-            #     PS.header.stamp = rospy.Time.now() # set header timestamp value
-            #     PS.header.frame_id = "map" # set header frame id value
-            #     goal_idx = min(0+self.plan_lookahead, len(self.plan)-1) # get goal index for looking ahead this many indices in the path
-            #     PS.pose.position.x = self.plan[goal_idx][0] # set msg x position to value of the x position in the look ahead pose from the path
-            #     PS.pose.position.y = self.plan[goal_idx][1] # set msg y position to value of the y position in the look ahead pose from the path
-            #     PS.pose.position.z = 0 # set msg z position to 0 since robot is on the ground
-            #     PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][2]) # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
-            #
-            #     self.goal_pub.publish(PS) # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
+            if len(self.plan) > 0:
+                PS = PoseStamped()  # create a PoseStamped() msg
+                PS.header.stamp = rospy.Time.now()  # set header timestamp value
+                PS.header.frame_id = "map"  # set header frame id value
+                goal_idx = min(0 + self.plan_lookahead,
+                               len(self.plan) - 1)  # get goal index for looking ahead this many indices in the path
+                PS.pose.position.x = self.plan[goal_idx][
+                    0]  # set msg x position to value of the x position in the look ahead pose from the path
+                PS.pose.position.y = self.plan[goal_idx][
+                    1]  # set msg y position to value of the y position in the look ahead pose from the path
+                PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
+                PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][
+                                                                    2])  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
+
+                self.goal_pub.publish(
+                    PS)  # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
 
         # Check if the plan is empty. If so, return (False, 0.0)
         # YOUR CODE HERE
@@ -168,22 +179,23 @@ class LineFollower:
         # front of the robot. To allow the robot to have some amount of 'look ahead',
         # we choose to have the robot head towards the configuration at index 0 + self.plan_lookahead
         # We call this index the goal_index
-        goal_idx = min(0+self.plan_lookahead, len(self.plan)-1)
-
+        goal_idx = min(0 + self.plan_lookahead, len(self.plan) - 1)
 
         # Compute the translation error between the robot and the configuration at goal_idx in the plan
         # YOUR CODE HERE
         print "cur_pose: ", cur_pose
         print "lookahead pose: ", self.plan[goal_idx]
         look_ahead_position = np.array([self.plan[goal_idx][0], self.plan[goal_idx][1]]).reshape([2, 1])
-        translation_robot_to_origin = np.array([ -cur_pose[0], -cur_pose[1]]).reshape([2, 1])
+        translation_robot_to_origin = np.array([-cur_pose[0], -cur_pose[1]]).reshape([2, 1])
         look_ahead_position_translated = look_ahead_position + translation_robot_to_origin
         rotation_matrix_robot_to_x_axis = utils.rotation_matrix(-cur_pose[2])
         look_ahead_position_translated_and_rotated = rotation_matrix_robot_to_x_axis * look_ahead_position_translated
         print "look_ahead_position_translated_and_rotated: ", look_ahead_position_translated_and_rotated
-        x_error = float(look_ahead_position_translated_and_rotated[0][0]) # This is the distance that the robot is behind the lookahead point parallel to the path
-        y_error = float(look_ahead_position_translated_and_rotated[1][0]) # This is the distance away from the path, perpendicular from the path to the robot
-        translation_error = -y_error# math.tan(y_error / x_error) * math.pi / 180 # angle in rad to drive along hypotenuse toward the look ahead point
+        x_error = float(look_ahead_position_translated_and_rotated[0][
+                            0])  # This is the distance that the robot is behind the lookahead point parallel to the path
+        y_error = float(look_ahead_position_translated_and_rotated[1][
+                            0])  # This is the distance away from the path, perpendicular from the path to the robot
+        translation_error = -y_error  # math.tan(y_error / x_error) * math.pi / 180 # angle in rad to drive along hypotenuse toward the look ahead point
         # translation_error *= 10 #float(y_error/x_error) # make the robot turn more sharply if far away from path
 
         # translation_error = np.sqrt(np.square(cur_pose[0] - self.plan[goal_idx][0]) + np.square(cur_pose[1] - self.plan[goal_idx][1]))
@@ -196,6 +208,7 @@ class LineFollower:
         #   Be careful about the sign of the rotation error
         # YOUR CODE HERE
         rotation_error = cur_pose[2] - self.plan[goal_idx][2]
+        #ToDo: Fix rotation error when moving right to left, it only calculates correctly left to right
         print "Rotation error: ", rotation_error
 
         error = self.translation_weight * translation_error + self.rotation_weight * rotation_error
@@ -203,12 +216,15 @@ class LineFollower:
         self.total_error_list.append(error)
 
         return True, error
-    
+
+
     '''
     Uses a PID control policy to generate a steering angle from the passed error
     error: The current error
     Returns: The steering angle that should be executed
     '''
+
+
     def compute_steering_angle(self, error):
         print "Computing steering angle..."
         now = rospy.Time.now().to_sec()  # Get the current time
@@ -223,7 +239,7 @@ class LineFollower:
         print "setting deriv and integ error to 0"
         print "error_buff len", len(self.error_buff)
         if len(self.error_buff) > 0:
-            time_delta = now - self.error_buff[-1][1]       # -1 means peeking the rightmost element (most recent)
+            time_delta = now - self.error_buff[-1][1]  # -1 means peeking the rightmost element (most recent)
             error_delta = error - self.error_buff[-1][0]
 
             deriv_error = error_delta / time_delta
@@ -245,33 +261,17 @@ class LineFollower:
 
         # Compute the steering angle as the sum of the pid errors
         # YOUR CODE HERE
-        return -(self.kp*error + self.ki*integ_error + self.kd * deriv_error)
-    
+        return -(self.kp * error + self.ki * integ_error + self.kd * deriv_error)
+
+
     '''
     Callback for the current pose of the car
     msg: A PoseStamped representing the current pose of the car
     This is the exact callback that we used in our solution, but feel free to change it
     '''
+
+
     def pose_cb(self, msg):
-
-        if len(self.plan) > 0:
-            PS = PoseStamped()  # create a PoseStamped() msg
-            PS.header.stamp = rospy.Time.now()  # set header timestamp value
-            PS.header.frame_id = "map"  # set header frame id value
-            goal_idx = min(0 + self.plan_lookahead,
-                           len(self.plan) - 1)  # get goal index for looking ahead this many indices in the path
-            PS.pose.position.x = self.plan[goal_idx][
-                0]  # set msg x position to value of the x position in the look ahead pose from the path
-            PS.pose.position.y = self.plan[goal_idx][
-                1]  # set msg y position to value of the y position in the look ahead pose from the path
-            PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
-            PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][
-                                                                2])  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
-
-            self.goal_pub.publish(
-                PS)  # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
-
-
         print ""
         time.sleep(0)
         print "Callback received current pose. "
@@ -280,41 +280,42 @@ class LineFollower:
                              utils.quaternion_to_angle(msg.pose.orientation)])
         print "Current pose: ", cur_pose
 
-        # print "plan[:,[0,1]]", type(np.array(self.plan)), np.array(self.plan)[:,[0,1]]
-        # find closest point and delete all points before it in the plan
-        # only done once at the start of following the plan
-        if self.found_closest_point == False:
-            min_path_distance = np.Infinity  # to find closest path point and delete all points before it
-            for count, position in enumerate(np.array(self.plan)[:,[0,1]]):
-                distance = np.sqrt(np.square(cur_pose[0] - position[0]) + np.square(cur_pose[1] - position[1]))
-                if distance < min_path_distance:
-                    self.found_closest_point = True
-                    min_path_distance = distance
-                    if count > 0:
-                        self.plan.pop(0)
+        # # print "plan[:,[0,1]]", type(np.array(self.plan)), np.array(self.plan)[:,[0,1]]
+        # # find closest point and delete all points before it in the plan
+        # # only done once at the start of following the plan
+        # if self.found_closest_point == False:
+        #     min_path_distance = np.Infinity  # to find closest path point and delete all points before it
+        #     for count, position in enumerate(np.array(self.plan)[:, [0, 1]]):
+        #         distance = np.sqrt(np.square(cur_pose[0] - position[0]) + np.square(cur_pose[1] - position[1]))
+        #         if distance < min_path_distance:
+        #             self.found_closest_point = True
+        #             min_path_distance = distance
+        #             if count > 0:
+        #                 self.plan.pop(0)
 
         success, error = self.compute_error(cur_pose)
         print "Success, Error: ", success, error
 
         if not success:
-            # # We have reached our goal
-            # self.pose_sub = None  # Kill the subscriber
-            # self.speed = 0.0  # Set speed to zero so car stops
-            # # plot the error here
-            # title_string = "Error plot with kp=%.2f, kd=%.2f, ki=%.2f t_w=%.2f r_w=%.2f" % \
-            #                (self.kp, self.kd, self.ki, self.translation_weight, self.rotation_weight)
-            #
-            # fig = plt.figure()
-            # ax = fig.add_subplot(111) #
-            # ax.plot(self.total_error_list)
-            # plt.title(title_string)
-            # plt.text(0.5,0.85, 'Total error = %.2f' % np.trapz(abs(np.array(self.total_error_list))), horizontalalignment='center',
-            #          verticalalignment='center', transform = ax.transAxes)
-            # plt.xlabel('Iterations')
-            # plt.ylabel('Error')
-            # plt.show()
-            #
-            # np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
+            # We have reached our goal
+            self.pose_sub = None  # Kill the subscriber
+            self.speed = 0.0  # Set speed to zero so car stops
+            # plot the error here
+            title_string = "Error plot with kp=%.2f, kd=%.2f, ki=%.2f t_w=%.2f r_w=%.2f" % \
+                           (self.kp, self.kd, self.ki, self.translation_weight, self.rotation_weight)
+
+            fig = plt.figure()
+            ax = fig.add_subplot(111)  #
+            ax.plot(self.total_error_list)
+            plt.title(title_string)
+            plt.text(0.5, 0.85, 'Total error = %.2f' % np.trapz(abs(np.array(self.total_error_list))),
+                     horizontalalignment='center',
+                     verticalalignment='center', transform=ax.transAxes)
+            plt.xlabel('Iterations')
+            plt.ylabel('Error')
+            plt.show()
+
+            np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
 
             return 0
 
@@ -334,27 +335,7 @@ class LineFollower:
 
 
 def main():
-
     rospy.init_node('line_follower', anonymous=True)  # Initialize the node
-
-    # # launch nodes from python
-    # # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
-    # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-    # roslaunch.configure_logging(uuid)
-    # map_server_launch = \
-    #     roslaunch.parent.ROSLaunchParent(uuid, [RACECAR_PKG_PATH + "/launch/includes/common/map_server.launch"])
-    # map_server_launch.start()
-    #
-    # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-    # roslaunch.configure_logging(uuid)
-    # car_kinematics_launch = \
-    #     roslaunch.parent.ROSLaunchParent(uuid, [RACECAR_PKG_PATH + "/launch/includes/common/car_kinematics.launch"])
-    # car_kinematics_launch.start()
-    #
-    # # start rviz by opening a new terminal in a new tab and running command "rviz"
-    # subprocess.call('gnome-terminal --tab --execute rviz', shell=True)
-
-
     """
     Load these parameters from launch file
     We provide suggested starting values of params, but you should
@@ -376,12 +357,12 @@ def main():
     speed = rospy.get_param('~speed')  # Default val: 1.0
 
     # raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
-
-    # Use rospy.wait_for_message to get the plan msg
-    # Convert the plan msg to a list of 3-element numpy arrays
-    #     Each array is of the form [x,y,theta]
-    # Create a LineFollower object
-
+    #
+    # # Use rospy.wait_for_message to get the plan msg
+    # # Convert the plan msg to a list of 3-element numpy arrays
+    # #     Each array is of the form [x,y,theta]
+    # # Create a LineFollower object
+    #
     # raw_plan = rospy.wait_for_message(plan_topic, PoseArray)
     #
     # # raw_plan is a PoseArray which has an array of geometry_msgs/Pose called poses
@@ -390,76 +371,28 @@ def main():
     #
     # for pose in raw_plan.poses:
     #     plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
-
-
+    #
+    # print "Len of plan array: %d" % len(plan_array)
+    # # print plan_array
+    plan_relative_path = "/saved_plans/plan2_clean"
     # load plan_array
     # load raw_plan msg (PoseArray)
-    loaded_vars = pickle.load(open(CURRENT_PKG_PATH + "/saved_plans/plan2", "r"))
+    loaded_vars = pickle.load(open(CURRENT_PKG_PATH + plan_relative_path, "r"))
     plan_array = loaded_vars[0]
     raw_plan = loaded_vars[1]
-
-    print len(plan_array), type(plan_array)
-
-    plan_array_new = []
-
-    # with open(CURRENT_PKG_PATH + "/saved_plans/eggs.csv", 'rb') as csvfile:
-    #     plan_reader = csv.reader(csvfile, delimiter=',')
-    #     for row in plan_reader:
-    #         plan_array_new.append(np.array(row))
-
-
-    total_distance = 0.0
-    for i in range(len(plan_array) - 1):
-        total_distance += np.sqrt(np.square(plan_array[i][0] - plan_array[i+1][0]) + np.square(plan_array[i][1] - plan_array[i+1][1]))
-
-    print 'Total distance ' + str(total_distance)
-    avg_distance = total_distance / len(plan_array)
-    print 'Average distance is ' + str(avg_distance)
-
-    for i in range(len(plan_array) - 1):
-        try:
-            current_distance = np.sqrt(np.square(plan_array[i][0] - plan_array[i+1][0]) + np.square(plan_array[i][1] - plan_array[i+1][1]))
-            if current_distance < avg_distance:
-                plan_array_new.append(plan_array.pop(i+1))
-                i -= 1
-        except IndexError:
-            print 'index error %d' % i
-    print len(plan_array)
-    raw_input('waiting...')
-
-    PA = PoseArray()  # create a PoseArray() msg
-    PA.header.stamp = rospy.Time.now()  # set header timestamp value
-    PA.header.frame_id = "map"  # set header frame id value
-    PA.poses = []
-    for pose in plan_array:
-        P = Pose()
-        P.position.x = float(pose[0])
-        P.position.y = float(pose[1])
-        P.position.z = 0
-        P.orientation = utils.angle_to_quaternion(float(pose[2]))
-
-        PA.poses.append(P)
-
 
     # visualize loaded plan
     PA_pub = rospy.Publisher("/LoadedPlan", PoseArray, queue_size=1)
     for i in range(0, 5):
         rospy.sleep(0.5)
-        PA_pub.publish(PA)
+        PA_pub.publish(raw_plan)
 
-    raw_input('waiting...')
-
-
-    print "Len of plan array: %d" % len(plan_array)
-    # print plan_array
-
+    print "LoadedPlan Published"
     try:
         if raw_plan:
             pass
     except rospy.ROSException:
         exit(1)
-
-
 
     lf = LineFollower(plan_array, pose_topic, plan_lookahead, translation_weight,
                       rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
