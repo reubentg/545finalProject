@@ -6,6 +6,7 @@ import math
 import time
 import subprocess
 import os
+import pickle
 
 import rospy
 import roslaunch
@@ -124,7 +125,8 @@ def main():
                     # orange path
                     [2600, 660, 30.0 * np.pi / 180.0], # REQUIRED Point 1
                     # yellow path
-                    [2410, 490, 160 * np.pi / 180.0], # end of yellow path
+                    [2620, 570, 120.0 * np.pi / 180.0],
+                    # [2410, 485, 160 * np.pi / 180.0], # end of yellow path
                     # green path
                     [2000, 400, -150 * np.pi / 180.0], # end of green path
                     # blue path
@@ -161,7 +163,7 @@ def main():
     for i, raw_plan in enumerate(individual_plan_parts):
         print "\nraw_plan ", i, " published of type: ", type(raw_plan)
         for pose in raw_plan.poses:
-            # plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+            plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
             P = Pose()
             P.position.x = pose.position.x
             P.position.y = pose.position.y
@@ -170,29 +172,18 @@ def main():
 
             PA.poses.append(P)
 
-    # create a message containing entire plan with all sub parts combined
-    # entire_plan_msg = PoseArray()
-    # entire_plan_msg.poses = plan_array
-
-    # # Read http://docs.ros.org/jade/api/geometry_msgs/html/msg/PoseArray.html
-    # PA = PoseArray()  # create a PoseArray() msg
-    # PA.header.stamp = rospy.Time.now()  # set header timestamp value
-    # PA.header.frame_id = "map"  # set header frame id value
-    # PA.poses =[]
-    #
-    # for pose in plan_array:  # for pose in range(0, 300) to show all, or range(299,300) to show only final pose
-    #     P = Pose()
-    #     P.position.x = pose[0]
-    #     P.position.y = pose[1]
-    #     P.position.z = 0
-    #     P.orientation = pose[2]
-    #
-    #     PA.poses.append(P)
     PA_pub = rospy.Publisher(PLAN_POSE_ARRAY_TOPIC, PoseArray, queue_size=1)
     for i in range(0, 5):
         rospy.sleep(0.5)
         PA_pub.publish(PA)
     os.system('rosnode kill planner_node')
+
+    # save plan_array to file
+    # save plan PoseArray msg to file
+    file_temp = open('/home/tim/car_ws/src/final/saved_plans/plan2', 'w')
+    pickle.dump([plan_array, PA], file_temp)
+    file_temp.close()
+
     print "\n\n DONE \n\n"
 
 if __name__ == '__main__':

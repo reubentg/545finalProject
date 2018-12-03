@@ -4,32 +4,28 @@ import collections
 import sys
 import math
 import time
-import os
+import pickle
+import roslaunch
+import subprocess
+
 import rospy
+import rospkg
 import numpy as np
-from threading import Lock
 import matplotlib.pyplot as plt
-from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseArray, PoseStamped
 from ackermann_msgs.msg import AckermannDriveStamped
-# add this to python2.7 in settings
-#/opt/ros/melodic/lib/python2.7/dist-packages
 
 import utils
 
+rospack = rospkg.RosPack()
+RACECAR_PKG_PATH = rospack.get_path('racecar')
+PLANNER_PKG_PATH = rospack.get_path('planning_utils')
 
 # The topic to publish control commands to
 PUB_TOPIC = '/vesc/high_level/ackermann_cmd_mux/input/nav_0'
 PUB_TOPIC_2 = '/plan_lookahead_follower/pose' # to publish plan lookahead follower to assist with troubleshooting
-MAP_TOPIC = 'static_map' # The service topic that will provide the map
 WINDOW_WIDTH = 5
 
-# The topics to get plan
-INIT_POSE_TOPIC = "/initialpose"
-GOAL_POSE_TOPIC = "/move_base_simple/goal"
-PLAN_POSE_ARRAY_TOPIC = "/planner_node/car_plan"
-PLAN_POSE_ARRAY_TOPIC1 = "/planner_node/car_plan1"
-PLAN_POSE_ARRAY_TOPIC2 = "/planner_node/car_plan2"
-PLAN_POSE_ARRAY_TOPIC3 = "/planner_node/car_plan3"
 
 '''
 Follows a given plan using constant velocity and PID control of the steering angle
@@ -77,17 +73,36 @@ class LineFollower:
 
         # print "line_follower Initialized!"
         # print "plan[0]", self.plan[0]
+        # print "plan_lookahead", self.plan_lookahead
         # print "plan[plan_lookahead]", self.plan[plan_lookahead]
         # print "error_buff length: ", len(self.error_buff)
         # print "error_buff: ", self.error_buff
 
+
         # YOUR CODE HERE
         self.cmd_pub = rospy.Publisher(PUB_TOPIC, AckermannDriveStamped, queue_size=10)  # Create a publisher to PUB_TOPIC
-        self.lookahead_pub = rospy.Publisher(PUB_TOPIC_2, PoseStamped, queue_size=10) # create a publisher for plan lookahead follower
-        
-        
+        self.goal_pub = rospy.Publisher(PUB_TOPIC_2, PoseStamped, queue_size=10) # create a publisher for plan lookahead follower
+
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
+
+        # set initial car pose to start pose
+
+
+        # raw_input("Wait")
+        PS = PoseStamped()  # create a PoseStamped() msg
+        PS.header.stamp = rospy.Time.now()  # set header timestamp value
+        PS.header.frame_id = "map"  # set header frame id value
+        PS.pose.position.x = plan[0][0]
+        PS.pose.position.y = plan[0][1]
+        PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
+        PS.pose.orientation = utils.angle_to_quaternion(plan[0][2])
+
+        car_pose_pub = rospy.Publisher(pose_topic, PoseStamped, queue_size=1)
+        for i in range(0, 5):
+            rospy.sleep(0.5)
+            car_pose_pub.publish(PS)
+        print "Set INITIAL Pose to ", PS
 
   
     '''
@@ -131,17 +146,17 @@ class LineFollower:
                 self.plan.pop(0) # delete the first element in the path, since that point is behind robot and it's direction is similar to robot
                 print "element deleted? : ", len(self.plan) # for troubleshooting, show path points after deleting
 
-            if len(self.plan) > 0:
-                PS = PoseStamped() # create a PoseStamped() msg
-                PS.header.stamp = rospy.Time.now() # set header timestamp value
-                PS.header.frame_id = "map" # set header frame id value
-                goal_idx = min(0+self.plan_lookahead, len(self.plan)-1) # get goal index for looking ahead this many indices in the path
-                PS.pose.position.x = self.plan[goal_idx][0] # set msg x position to value of the x position in the look ahead pose from the path
-                PS.pose.position.y = self.plan[goal_idx][1] # set msg y position to value of the y position in the look ahead pose from the path
-                PS.pose.position.z = 0 # set msg z position to 0 since robot is on the ground
-                PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][2]) # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
-
-                self.lookahead_pub.publish(PS) # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
+            # if len(self.plan) > 0:
+            #     PS = PoseStamped() # create a PoseStamped() msg
+            #     PS.header.stamp = rospy.Time.now() # set header timestamp value
+            #     PS.header.frame_id = "map" # set header frame id value
+            #     goal_idx = min(0+self.plan_lookahead, len(self.plan)-1) # get goal index for looking ahead this many indices in the path
+            #     PS.pose.position.x = self.plan[goal_idx][0] # set msg x position to value of the x position in the look ahead pose from the path
+            #     PS.pose.position.y = self.plan[goal_idx][1] # set msg y position to value of the y position in the look ahead pose from the path
+            #     PS.pose.position.z = 0 # set msg z position to 0 since robot is on the ground
+            #     PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][2]) # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
+            #
+            #     self.goal_pub.publish(PS) # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
 
         # Check if the plan is empty. If so, return (False, 0.0)
         # YOUR CODE HERE
@@ -238,6 +253,25 @@ class LineFollower:
     This is the exact callback that we used in our solution, but feel free to change it
     '''
     def pose_cb(self, msg):
+
+        if len(self.plan) > 0:
+            PS = PoseStamped()  # create a PoseStamped() msg
+            PS.header.stamp = rospy.Time.now()  # set header timestamp value
+            PS.header.frame_id = "map"  # set header frame id value
+            goal_idx = min(0 + self.plan_lookahead,
+                           len(self.plan) - 1)  # get goal index for looking ahead this many indices in the path
+            PS.pose.position.x = self.plan[goal_idx][
+                0]  # set msg x position to value of the x position in the look ahead pose from the path
+            PS.pose.position.y = self.plan[goal_idx][
+                1]  # set msg y position to value of the y position in the look ahead pose from the path
+            PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
+            PS.pose.orientation = utils.angle_to_quaternion(self.plan[goal_idx][
+                                                                2])  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
+
+            self.goal_pub.publish(
+                PS)  # publish look ahead follower, now you can add a Pose with topic of PUB_TOPIC_2 value in rviz
+
+
         print ""
         time.sleep(0)
         print "Callback received current pose. "
@@ -263,24 +297,24 @@ class LineFollower:
         print "Success, Error: ", success, error
 
         if not success:
-            # We have reached our goal
-            self.pose_sub = None  # Kill the subscriber
-            self.speed = 0.0  # Set speed to zero so car stops
-            # plot the error here
-            title_string = "Error plot with kp=%.2f, kd=%.2f, ki=%.2f t_w=%.2f r_w=%.2f" % \
-                           (self.kp, self.kd, self.ki, self.translation_weight, self.rotation_weight)
-
-            fig = plt.figure()
-            ax = fig.add_subplot(111) #
-            ax.plot(self.total_error_list)
-            plt.title(title_string)
-            plt.text(0.5,0.85, 'Total error = %.2f' % np.trapz(abs(np.array(self.total_error_list))), horizontalalignment='center',
-                     verticalalignment='center', transform = ax.transAxes)
-            plt.xlabel('Iterations')
-            plt.ylabel('Error')
-            plt.show()
-
-            np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
+            # # We have reached our goal
+            # self.pose_sub = None  # Kill the subscriber
+            # self.speed = 0.0  # Set speed to zero so car stops
+            # # plot the error here
+            # title_string = "Error plot with kp=%.2f, kd=%.2f, ki=%.2f t_w=%.2f r_w=%.2f" % \
+            #                (self.kp, self.kd, self.ki, self.translation_weight, self.rotation_weight)
+            #
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111) #
+            # ax.plot(self.total_error_list)
+            # plt.title(title_string)
+            # plt.text(0.5,0.85, 'Total error = %.2f' % np.trapz(abs(np.array(self.total_error_list))), horizontalalignment='center',
+            #          verticalalignment='center', transform = ax.transAxes)
+            # plt.xlabel('Iterations')
+            # plt.ylabel('Error')
+            # plt.show()
+            #
+            # np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
 
             return 0
 
@@ -299,52 +333,28 @@ class LineFollower:
         self.cmd_pub.publish(ads)
 
 
-def get_plan(initial_pose, goal_pose, initial_pose_topic, goal_pose_topic, plan_array_topic):
-
-    print "inside get_plan with ", initial_pose_topic, goal_pose_topic, plan_array_topic
-    # Create a publisher to publish the initial pose
-    init_pose_pub = rospy.Publisher(initial_pose_topic, PoseWithCovarianceStamped, queue_size=1)  # to publish init position x=2500, y=640
-    # Create a publisher to publish the goal pose
-    goal_pose_pub = rospy.Publisher(goal_pose_topic, PoseStamped, queue_size=1)  # create a publisher for goal pose
-
-    map_img, map_info = utils.get_map(MAP_TOPIC)  # Get and store the map
-    PWCS = PoseWithCovarianceStamped()  # create a PoseWithCovarianceStamped() msg
-    PWCS.header.stamp = rospy.Time.now()  # set header timestamp value
-    PWCS.header.frame_id = "map"  # set header frame id value
-
-    temp_pose = utils.map_to_world(initial_pose, map_info)  # init pose
-    PWCS.pose.pose.position.x = temp_pose[0]
-    PWCS.pose.pose.position.y = temp_pose[1]
-    PWCS.pose.pose.position.z = 0
-    PWCS.pose.pose.orientation = utils.angle_to_quaternion(temp_pose[2])  # set msg orientation to [converted to queternion] value of the yaw angle in the look ahead pose from the path
-    # print "PWCS", PWCS
-    init_pose_pub.publish(PWCS)  # publish initial pose, now you can add a PoseWithCovariance with topic of "/initialpose" in rviz
-
-    PS = PoseStamped()  # create a PoseStamped() msg
-    PS.header.stamp = rospy.Time.now()  # set header timestamp value
-    PS.header.frame_id = "map"  # set header frame id value
-
-    temp_pose = utils.map_to_world(goal_pose, map_info)  # init pose
-    PS.pose.position.x = temp_pose[0]  # set msg x position to value of the x position in the look ahead pose from the path
-    PS.pose.position.y = temp_pose[1]  # set msg y position to value of the y position in the look ahead pose from the path
-    PS.pose.position.z = 0  # set msg z position to 0 since robot is on the ground
-    PS.pose.orientation = utils.angle_to_quaternion(temp_pose[2])
-    goal_pose_pub.publish(PS)
-    print 'publishing complete; should start planning now'
-
-    # Use rospy.wait_for_message to get the plan msg
-    # Convert the plan msg to a list of 3-element numpy arrays
-    #     Each array is of the form [x,y,theta]
-    # Create a LineFollower object
-    # raw_input("Init Pose and Goal Pose should be visualized now...")  # Waits for ENTER key press
-    raw_plan = rospy.wait_for_message(plan_array_topic, PoseArray)
-    print "raw_plan", type(raw_plan)
-
-    return raw_plan
-
 def main():
 
     rospy.init_node('line_follower', anonymous=True)  # Initialize the node
+
+    # # launch nodes from python
+    # # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
+    # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    # roslaunch.configure_logging(uuid)
+    # map_server_launch = \
+    #     roslaunch.parent.ROSLaunchParent(uuid, [RACECAR_PKG_PATH + "/launch/includes/common/map_server.launch"])
+    # map_server_launch.start()
+    #
+    # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    # roslaunch.configure_logging(uuid)
+    # car_kinematics_launch = \
+    #     roslaunch.parent.ROSLaunchParent(uuid, [RACECAR_PKG_PATH + "/launch/includes/common/car_kinematics.launch"])
+    # car_kinematics_launch.start()
+    #
+    # # start rviz by opening a new terminal in a new tab and running command "rviz"
+    # subprocess.call('gnome-terminal --tab --execute rviz', shell=True)
+
+
     """
     Load these parameters from launch file
     We provide suggested starting values of params, but you should
@@ -356,66 +366,16 @@ def main():
     # YOUR CODE HERE
     plan_topic = rospy.get_param('~plan_topic')  # Default val: '/planner_node/car_plan'
     pose_topic = rospy.get_param('~pose_topic')  # Default val: '/sim_car_pose/pose'
-
     plan_lookahead = rospy.get_param('~plan_lookahead')  # Starting val: 5
     translation_weight = rospy.get_param('~translation_weight')  # Starting val: 1.0
     rotation_weight = rospy.get_param('~rotation_weight')  # Starting val: 0.0
-
     kp = rospy.get_param('~kp')  # Startinig val: 1.0
     ki = rospy.get_param('~ki')  # Starting val: 0.0
     kd = rospy.get_param('~kd')  # Starting val: 0.0
     error_buff_length = rospy.get_param('~error_buff_length')  # Starting val: 10
     speed = rospy.get_param('~speed')  # Default val: 1.0
 
-    individual_plan_parts = []
-
-    # Make Plan
-    initial_pose = [2500.0, 640.0, -0.1159]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [2600.0, 660.0, 0.0]
-
-    raw_input("\n\nPress Enter when ready to start planning...\n\n")  # Waits for ENTER key press
-
-    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose0', '/move_base_simple0/goal', '/planner_node0/car_plan')
-    individual_plan_parts.append(cool_plan)
-
-    # os.system('rosnode kill /planner_node0')
-
-    # Make Plan
-    initial_pose = [2600.0, 660.0, 0.0]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [1880.0, 440.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose1', '/move_base_simple1/goal', '/planner_node1/car_plan')
-    individual_plan_parts.append(cool_plan)
-
-    # os.system('rosnode kill /planner_node1')
-
-    # # Make Plan
-    initial_pose = [1880.0, 440.0, 0.0]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [1435.0, 545.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose2', '/move_base_simple2/goal', '/planner_node2/car_plan')
-    # os.system('rosnode kill /planner_node2')
-
-    # # Make Plan
-    initial_pose = [1435.0, 545.0, 0.0]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [1250.0, 460.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose3', '/move_base_simple3/goal', '/planner_node3/car_plan')
-    individual_plan_parts.append(cool_plan)
-
-    # os.system('rosnode kill /planner_node3')
-
-    # # Make Plan
-    initial_pose = [1250.0, 460.0, 0.0]
-    # initial_pose = [540.0, 835.0, 0.0]
-    goal_pose = [540.0, 835.0, 0.0]
-    cool_plan = get_plan(initial_pose, goal_pose, 'initialpose4', '/move_base_simple4/goal', '/planner_node4/car_plan')
-    individual_plan_parts.append(cool_plan)
-
-    # os.system('rosnode kill /planner_node4')
-
-    raw_input("Press Enter to when planning is done...")  # Waits for ENTER key press
+    # raw_input("Press Enter to when plan available...")  # Waits for ENTER key press
 
     # Use rospy.wait_for_message to get the plan msg
     # Convert the plan msg to a list of 3-element numpy arrays
@@ -423,28 +383,43 @@ def main():
     # Create a LineFollower object
 
     # raw_plan = rospy.wait_for_message(plan_topic, PoseArray)
-    plan_array = []
-    path_part_pub = []
-    for i, raw_plan in enumerate(individual_plan_parts):
-        path_part_pub.append(rospy.Publisher("CoolPlan" + str(i), PoseArray))  # create a publisher for plan lookahead follower
-        path_part_pub[i].publish(raw_plan)
-        print "raw_plan published", raw_plan
-        for pose in raw_plan.poses:
-            plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+    #
+    # # raw_plan is a PoseArray which has an array of geometry_msgs/Pose called poses
+    #
+    # plan_array = []
+    #
+    # for pose in raw_plan.poses:
+    #     plan_array.append(np.array([pose.position.x, pose.position.y, utils.quaternion_to_angle(pose.orientation)]))
+
+
+    # load plan_array
+    # load raw_plan msg (PoseArray)
+    loaded_vars = pickle.load( open("/home/tim/car_ws/src/final/saved_plans/plan2", "r"))
+    plan_array = loaded_vars[0]
+    raw_plan = loaded_vars[1]
+
+
+    # visualize loaded plan
+    PA_pub = rospy.Publisher("/LoadedPlan", PoseArray, queue_size=1)
+    for i in range(0, 5):
+        rospy.sleep(0.5)
+        PA_pub.publish(raw_plan)
+
+
 
     print "Len of plan array: %d" % len(plan_array)
     # print plan_array
 
     try:
-        if cool_plan:
+        if raw_plan:
             pass
     except rospy.ROSException:
         exit(1)
 
 
 
-    # lf = LineFollower(plan_array,  pose_topic, plan_lookahead, translation_weight,
-    #                   rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
+    lf = LineFollower(plan_array, pose_topic, plan_lookahead, translation_weight,
+                      rotation_weight, kp, ki, kd, error_buff_length, speed)  # Create a Line follower
 
     rospy.spin()  # Prevents node from shutting down
 

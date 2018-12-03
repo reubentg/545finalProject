@@ -1,19 +1,36 @@
 <!-- -*- mode: XML -*- -->
 <launch>
 
-    <include file="$(find racecar)/launch/includes/common/map_server.launch"/>
-    <include file="$(find final)/launch/planner_node_multi.launch" />
+    <!--
+    plan_topic: The topic that provides the plan as a PoseArray msg
+    pose_topic: The topic that provides the current pose of the robot as a PoseStamped msg
+    plan_lookahead: If the robot is currently closest to the i-th pose in the plan,
+                    then it should navigate towards the (i+plan_lookahead)-th pose in the plan
+    translation_weight: How much the error in translation should be weighted in relation
+                        to the error in rotation
+    rotation_weight: How much the error in rotation should be weighted in relation
+                     to the error in translation
+    kp: The proportional PID parameter
+    ki: The integral PID parameter
+    kd: The derivative PID parameter
+    error_buff_length: The length of the buffer that is storing past error values
+    speed: The speed at which the robot should travel
+    -->
+
+   <!--
+	Launch a line_follower node here
+   -->
     <node pkg="final" type="line_follower.py" name="LineFollow" output="screen">
-        <param name="plan_topic" type="str" value="/planner_node/car_plan"/>
-        <param name="pose_topic" type="string" value="/sim_car_pose/pose"/>
-        <param name="plan_lookahead" type="int" value="5"/>
+        <param name="plan_topic" type="str" value="/planner_node/car_plan" />
+        <param name="pose_topic" type="string" value="/sim_car_pose/pose" />
+        <param name="plan_lookahead" type="int" value="5" />
         <param name="translation_weight" type="double" value="1.0"/>
-        <param name="rotation_weight" type="double" value="1.0"/>
-        <param name="kp" type="double" value="0.5"/>
-        <param name="ki" type="double" value="1.5"/>
-        <param name="kd" type="double" value="5.5"/>
-        <param name="error_buff_length" type="int" value="10"/>
-        <param name="speed" type="double" value="1.0"/>
+        <param name="rotation_weight" type="double" value="1.0" />
+        <param name="kp" type="double" value="0.5" />
+        <param name="ki" type="double" value="1.5" />
+        <param name="kd" type="double" value="5.5" />
+        <param name="error_buff_length" type="int" value="10" />
+        <param name="speed" type="double" value="1.0" />
     </node>
 
 </launch>
