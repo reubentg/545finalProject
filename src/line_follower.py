@@ -352,7 +352,7 @@ class LineFollower:
 
 
     def pose_cb(self, msg):
-        # print ""
+        print "inside line_follower ,pose_cb"
         time.sleep(0)
         # print "Callback received current pose. "
         cur_pose = np.array([msg.pose.position.x,
