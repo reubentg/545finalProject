@@ -361,7 +361,7 @@ class LineFollower:
         cur_pose = np.array([msg.pose.position.x,
                              msg.pose.position.y,
                              utils.quaternion_to_angle(msg.pose.orientation)])
-        # print "Current pose: ", cur_pose
+        print "Current pose: ", cur_pose
 
         # # # print "plan[:,[0,1]]", type(np.array(self.plan)), np.array(self.plan)[:,[0,1]]
         # # find closest point and delete all points before it in the plan
@@ -377,7 +377,7 @@ class LineFollower:
         #                 self.plan.pop(0)
 
         success, error = self.compute_error(cur_pose)
-        # print "Success, Error: ", success, error
+        print "Success, Error: ", success, error
 
         if not success:
             # We have reached our goal
@@ -405,7 +405,7 @@ class LineFollower:
 
         delta = self.compute_steering_angle(error)
 
-        # print "delta is %f" % delta
+        print "delta is %f" % delta
 
         # Setup the control message
         ads = AckermannDriveStamped()
