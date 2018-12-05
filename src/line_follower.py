@@ -115,7 +115,7 @@ class LineFollower:
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
         print "inside line_follower, constructor end"
-        print "self.pose.cb", self.po
+
 
 
 
