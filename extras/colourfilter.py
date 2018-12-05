@@ -12,27 +12,27 @@ resizeWidth = 50
 cap = cv2.VideoCapture(1)
 
 # Initialize plot.
-fig, ax = plt.subplots()
-ax.set_xlabel('Bin')
-ax.set_ylabel('Frequency')
-ax.set_title('Histogram(s)')
+# fig, ax = plt.subplots()
+# ax.set_xlabel('Bin')
+# ax.set_ylabel('Frequency')
+# ax.set_title('Histogram(s)')
 
-lineRed, = ax.plot(np.arange(bins), np.zeros((bins,)), c='r', lw=lw, alpha=alpha, label='lineMask_Red')
-lineBlue, = ax.plot(np.arange(bins), np.zeros((bins,)), c='b', lw=lw, alpha=alpha, label='lineMask_Blue')
+# lineRed, = ax.plot(np.arange(bins), np.zeros((bins,)), c='r', lw=lw, alpha=alpha, label='lineMask_Red')
+# lineBlue, = ax.plot(np.arange(bins), np.zeros((bins,)), c='b', lw=lw, alpha=alpha, label='lineMask_Blue')
 
-ax.set_xlim(0, bins - 1)
-ax.set_ylim(0, 1)
-ax.legend()
+# ax.set_xlim(0, bins - 1)
+# ax.set_ylim(0, 1)
+# ax.legend()
 
-plt.ion()
-plt.show()
+# plt.ion()
+# plt.show()
 
 
 while (True):
     # Capture frame-by-frame
     ret, frame = cap.read()
     height, width, channels = frame.shape
-    #print height, width, channels
+    print height, width, channels
     #height = 480
     #width = 640
     #channel = 3
