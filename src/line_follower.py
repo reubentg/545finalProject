@@ -94,9 +94,6 @@ class LineFollower:
         self.deleted = rospy.Publisher("Deleted", PoseStamped,
                                         queue_size=10)  # create a publisher for plan lookahead follower
 
-        # Create a subscriber to pose_topic, with callback 'self.pose_cb'
-        self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
-
         # Create a publisher to publish the initial pose
         init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped,
                                         queue_size=1)  # to publish init position x=2500, y=640
@@ -112,6 +109,11 @@ class LineFollower:
             rospy.sleep(0.5)
             init_pose_pub.publish(
                 PWCS)  # publish initial pose, now you can add a PoseWithCovariance with topic of "/initialpose" in rviz
+
+        rospy.sleep(1)
+        # Create a subscriber to pose_topic, with callback 'self.pose_cb'
+        self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
+
 
 
     '''
