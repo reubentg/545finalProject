@@ -53,6 +53,7 @@ class LineFollower:
 
     def __init__(self, plan, pose_topic, plan_lookahead, translation_weight,
                  rotation_weight, kp, ki, kd, error_buff_length, speed):
+        print "inside line_follower, constructor"
         # Store the passed parameters
         self.plan = plan
         self.plan_lookahead = plan_lookahead
@@ -110,9 +111,11 @@ class LineFollower:
             init_pose_pub.publish(
                 PWCS)  # publish initial pose, now you can add a PoseWithCovariance with topic of "/initialpose" in rviz
 
-        rospy.sleep(1)
+
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
+        print "inside line_follower, constructor end"
+        print "self.pose.cb", self.po
 
 
 
@@ -428,6 +431,7 @@ def main():
     # YOUR CODE HERE
     plan_topic = rospy.get_param('~plan_topic')  # Default val: '/planner_node/car_plan'
     pose_topic = rospy.get_param('~pose_topic')  # Default val: '/sim_car_pose/pose'
+    pose_topic = "/pf/viz/inferred_pose"
     plan_lookahead = rospy.get_param('~plan_lookahead')  # Starting val: 5
     translation_weight = rospy.get_param('~translation_weight')  # Starting val: 1.0
     rotation_weight = rospy.get_param('~rotation_weight')  # Starting val: 0.0
