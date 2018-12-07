@@ -85,7 +85,7 @@ class LaserWanderer:
 
     def float_cb(self, msg):
         self.angle_from_line_follower = msg.data
-    
+
     '''
     Vizualize the rollouts. Transforms the rollouts to be in the frame of the world.
     Only display the last pose of each rollout to prevent lagginess
@@ -168,7 +168,7 @@ class LaserWanderer:
         """
         # YOUR CODE HERE
         if delta == np.inf: # variable rollout
-            cost = -100000
+            cost = -5000
         else:
             cost = abs(delta)
         angle = math.atan2(rollout_pose[1], rollout_pose[0])
@@ -325,6 +325,9 @@ class LaserWanderer:
         ads = AckermannDriveStamped()
         ads.header.frame_id = '/map'
         ads.header.stamp = rospy.Time.now()
+        if delta == np.inf:
+            delta = self.angle_from_line_follower
+        print "DELTA", delta
         ads.drive.steering_angle = delta
         ads.drive.speed = self.speed
         self.cmd_pub.publish(ads)

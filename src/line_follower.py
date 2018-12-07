@@ -441,7 +441,7 @@ def main():
     # YOUR CODE HERE
     plan_topic = rospy.get_param('~plan_topic')  # Default val: '/planner_node/car_plan'
     pose_topic = rospy.get_param('~pose_topic')  # Default val: '/sim_car_pose/pose'
-    if False: # if on robot? else in rviz
+    if True: # if on robot? else in rviz
         pose_topic = "/pf/viz/inferred_pose"
     plan_lookahead = rospy.get_param('~plan_lookahead')  # Starting val: 5
     translation_weight = rospy.get_param('~translation_weight')  # Starting val: 1.0
@@ -472,7 +472,7 @@ def main():
     else: # use preexisting plan from plan_creator.launch and plan_cleanup.launch
         # # # print "Len of plan array: %d" % len(plan_array)
         # # # # print plan_array
-        plan_relative_path = "/saved_plans/plan2_clean"
+        plan_relative_path = "/saved_plans/plan2"
         # load plan_array
         # load raw_plan msg (PoseArray)
         loaded_vars = pickle.load(open(CURRENT_PKG_PATH + plan_relative_path, "r"))
