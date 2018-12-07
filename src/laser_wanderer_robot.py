@@ -15,6 +15,7 @@ from std_msgs.msg import Float32
 SCAN_TOPIC = '/scan'  # The topic to subscribe to for laser scans
 CMD_TOPIC = '/vesc/high_level/ackermann_cmd_mux/input/nav_0'  # The topic to publish controls to
 POSE_TOPIC = '/sim_car_pose/pose'   # The topic to subscribe to for current pose of the car
+POSE_TOPIC = "/pf/viz/inferred_pose"
 # NOTE THAT THIS IS ONLY NECESSARY FOR VIZUALIZATION
 
 VIZ_TOPIC = '/laser_wanderer/rollouts'  # The topic to publish to for vizualizing
