@@ -174,7 +174,7 @@ class LaserWanderer:
             cost = abs(delta)
         angle = math.atan2(rollout_pose[1], rollout_pose[0])
         laser_ray_index = int(round((angle - laser_msg.angle_min) / laser_msg.angle_increment))
-        if delta == 0:
+        if delta == 0 or delta == self.angle_from_line_follower:
             cone_angle = 5 # deg
             aa = int(round((-cone_angle * math.pi / 180 - laser_msg.angle_min) / laser_msg.angle_increment))
             bb = int(round((cone_angle * math.pi / 180 - laser_msg.angle_min) / laser_msg.angle_increment))

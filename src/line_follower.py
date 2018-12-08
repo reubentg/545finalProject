@@ -413,19 +413,21 @@ class LineFollower:
 
         # print "delta is %f" % delta
         #
-        # # Setup the control message
-        # ads = AckermannDriveStamped()
-        # ads.header.frame_id = '/map'
-        # ads.header.stamp = rospy.Time.now()
-        # ads.drive.steering_angle = delta
-        # ads.drive.speed = self.speed
-        #
-        # # Send the control message
-        # self.cmd_pub.publish(ads)
-        print "STEERING ANGLE", delta
-        float_msg = Float32()
-        float_msg.data = delta
-        self.float_pub.publish(float_msg)
+        if True: # not using laser_wanderer_robot.launch
+            # Setup the control message
+            ads = AckermannDriveStamped()
+            ads.header.frame_id = '/map'
+            ads.header.stamp = rospy.Time.now()
+            ads.drive.steering_angle = delta
+            print "SPEED", self.speed
+            ads.drive.speed = self.speed
+            self.cmd_pub.publish(ads)
+        # Send the control message to laser_wanderer_robot.launch
+        else:
+            print "STEERING ANGLE", delta
+            float_msg = Float32()
+            float_msg.data = delta
+            self.float_pub.publish(float_msg)
 
 
 def main():
@@ -472,7 +474,7 @@ def main():
     else: # use preexisting plan from plan_creator.launch and plan_cleanup.launch
         # # # print "Len of plan array: %d" % len(plan_array)
         # # # # print plan_array
-        plan_relative_path = "/saved_plans/plan2"
+        plan_relative_path = "/saved_plans/plan4"
         # load plan_array
         # load raw_plan msg (PoseArray)
         loaded_vars = pickle.load(open(CURRENT_PKG_PATH + plan_relative_path, "r"))
