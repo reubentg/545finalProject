@@ -123,34 +123,42 @@ def main():
     path_points =  [
                     [2500, 640, -11.3099 * np.pi / 180.0], # INITIAL Point
                     # orange path
-                    [2600, 660, 30.0 * np.pi / 180.0], # REQUIRED Point 1
+                    [2600, 660, 20.0 * np.pi / 180.0], # REQUIRED Point 1
                     # yellow path
-                    [2620, 570, 120.0 * np.pi / 180.0],
+                    [2620, 600, 125.0 * np.pi / 180.0],
                     # [2410, 485, 160 * np.pi / 180.0], # end of yellow path
                     # green path
-                    [2000, 400, -150 * np.pi / 180.0], # end of green path
+                    [1970, 400, -150 * np.pi / 180.0], # end of green path
                     # blue path
                     [1880, 440,-150 * np.pi / 180.0], # REQUIRED Point 2
                     # purple path
-                    [1575, 555, -170 * np.pi / 180.0], # end of purple path
-                    [1550, 560, -171 * np.pi / 180.0],  # end of purple path
+                    [1660, 490, -150 * np.pi / 180.0], # end of purple path
+                    [1550, 600, -171 * np.pi / 180.0],  # end of orange path
                     # orange path
-                    [1520, 560, -175 * np.pi / 180.0],
-                    [1435, 545, 160 * np.pi / 180.0], # REQUIRED Point 3
-                    [1250, 460, 160 * np.pi / 180.0], # REQUIRED Point 4
-                    [1050, 450, -160.0 * np.pi / 180.0],
-                    [650.0, 650.0, -120 * np.pi / 180.0],
-                    [540, 835, -120 * np.pi / 180.0]
+                    [1520, 600, -175 * np.pi / 180.0], # end of yellow
+                    [1435, 545, 160 * np.pi / 180.0], # REQUIRED Point 3, end of green
+                    [1250, 460, 160 * np.pi / 180.0], # REQUIRED Point 4, end of cyan
+                    [1050, 450, -160.0 * np.pi / 180.0], # end of purple
+                    [650.0, 650.0, -120 * np.pi / 180.0], # end of violet
+                    [540, 835, -120 * np.pi / 180.0] # end of cyan
                     ] # REQUIRED Point 5 (END)
 
     for i in range(0, len(path_points) - 1):
-        rospy.sleep(15)  # wait for planner_node to load or respawnn
+        rospy.sleep(13)  # wait for planner_node to load or respawnn
         # raw_input("\n\nPRESS ENTER WHEN READY TO PLAN\n\n")
         initial_pose = path_points[i]
         goal_pose = path_points[i + 1]
         individual_plan_parts.append(get_plan(initial_pose, goal_pose, i))
         if i != len(path_points) - 2:
             os.system('rosnode kill planner_node')
+        rospy.sleep(1)
+            # launch nodes from python
+            # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
+        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        roslaunch.configure_logging(uuid)
+        planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [PLANNER_PKG_PATH +
+                                                                      "/launch/planner_node.launch"])
+        planner_node_launch.start()
 
 
 
@@ -180,7 +188,7 @@ def main():
 
     # save plan_array to file
     # save plan PoseArray msg to file
-    file_temp = open('/home/tim/car_ws/src/final/saved_plans/plan2', 'w')
+    file_temp = open('/home/tim/car_ws/src/final/saved_plans/plan4', 'w')
     pickle.dump([plan_array, PA], file_temp)
     file_temp.close()
 
