@@ -103,7 +103,7 @@ class CVNode:
             cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
             cv2.drawContours(thresh_red, [c], -1, (0, 255, 0), 1)
 
-        if red_radius > 40:
+        if red_radius > 50:
             self.pub_saw_red.publish(angle_red)
         else:
             self.pub_saw_red.publish(-99.99)
