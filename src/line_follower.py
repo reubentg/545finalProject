@@ -119,9 +119,20 @@ class LineFollower:
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
         # print "inside line_follower, constructor end"
 
+        self.new_init_pos = rospy.Subscriber(INIT_POSE_TOPIC, PoseWithCovarianceStamped, self.new_init_pose_cb)
 
+    def new_init_pose_cb(self, msg):
+        if len(self.plan) > 0:
 
-
+            rot_mat = utils.rotation_matrix(-1 * self.curr_pose[2])
+            while len(self.plan) > 0:
+                distance = np.sqrt(np.square(self.curr_pose[0] - self.plan[0][0]) + np.square(self.curr_pose[1] - self.plan[0][1]))
+                # Figure out if self.plan[0] is in front or behind car
+                offset = rot_mat * ((self.plan[0][0:2] - self.curr_pose[0:2]).reshape(2, 1))
+                offset.flatten()
+                if offset[0] > 0.0 or distance > 1.0:
+                    break
+                self.plan.pop(0)
     '''
     Computes the error based on the current pose of the car
     cur_pose: The current pose of the car, represented as a numpy array [x,y,theta]
