@@ -8,6 +8,8 @@ rospack = rospkg.RosPack()
 RACECAR_PKG_PATH = rospack.get_path('racecar')
 PLANNER_PKG_PATH = rospack.get_path('planning_utils')
 CURRENT_PKG_PATH = rospack.get_path('final')
+BLUE_FILTER_TOPIC = '/cv_node/blue_data'
+RED_FILTER_TOPIC = '/cv_node/red_data'
 
 import collections
 import math
@@ -16,9 +18,11 @@ import time
 import rospy
 import numpy as np
 import matplotlib.pyplot as plt
-from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseArray, PoseStamped, PoseWithCovarianceStamped, PointStamped
 from ackermann_msgs.msg import AckermannDriveStamped
-from std_msgs.msg import Float32
+from std_msgs.msg import Float64
+
+
 
 import utils
 
@@ -73,6 +77,7 @@ class LineFollower:
         self.found_closest_point = False
         self.total_error_list = []
 
+        self.angle_from_computer_vision = None
         # # print "line_follower Initialized!"
         # # print "plan[0]", self.plan[0]
         # # print "plan[plan_lookahead]", self.plan[plan_lookahead]
@@ -96,7 +101,16 @@ class LineFollower:
         self.deleted = rospy.Publisher("Deleted", PoseStamped,
                                         queue_size=10)  # create a publisher for plan lookahead follower
 
-        self.float_pub = rospy.Publisher("angle_from_line_follower", Float32, queue_size=1)
+        self.float_pub = rospy.Publisher("angle_from_line_follower", Float64, queue_size=1)
+
+        self.selected_pub = rospy.Publisher("Selected", PoseStamped,
+                                            queue_size=1)  # create a publisher to visualize some pose from selected rollout
+
+        self.line_follower_angle_pub = rospy.Publisher("LineFollowerAngle", PoseStamped,
+                                                       queue_size=1)  # create a publisher to visualize some pose from selected rollout
+
+        self.float_blue_sub = rospy.Subscriber(BLUE_FILTER_TOPIC, Float64, self.float_cb_blue)
+        self.float_red_sub = rospy.Subscriber(RED_FILTER_TOPIC, Float64, self.float_cb_red)
 
         # Create a publisher to publish the initial pose
         init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped,
@@ -120,6 +134,12 @@ class LineFollower:
         # print "inside line_follower, constructor end"
 
         self.new_init_pos = rospy.Subscriber(INIT_POSE_TOPIC, PoseWithCovarianceStamped, self.new_init_pose_cb)
+
+    def float_cb_red(self, msg):
+        pass
+
+    def float_cb_blue(self, msg):
+        self.angle_from_computer_vision = msg.data
 
     def new_init_pose_cb(self, msg):
         if len(self.plan) > 0:
@@ -419,8 +439,13 @@ class LineFollower:
                 np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
 
             return 0
-
-        delta = self.compute_steering_angle(error)
+        # if computer vision angle is published then use that angle
+        if self.angle_from_computer_vision is not None or self.angle_from_computer_vision != -99.99:
+            delta = self.angle_from_computer_vision
+            print "CV ANGLE: ", delta
+        else:   # if computer vision angle is not published then use pid controller angle
+            delta = self.compute_steering_angle(error)
+            print "PID ANGLE:", delta
 
         # print "delta is %f" % delta
         #
@@ -430,12 +455,12 @@ class LineFollower:
             ads.header.frame_id = '/map'
             ads.header.stamp = rospy.Time.now()
             ads.drive.steering_angle = delta
-            print "SPEED", self.speed
             ads.drive.speed = self.speed
             self.cmd_pub.publish(ads)
+
+
         # Send the control message to laser_wanderer_robot.launch
         else:
-            print "STEERING ANGLE", delta
             float_msg = Float32()
             float_msg.data = delta
             self.float_pub.publish(float_msg)

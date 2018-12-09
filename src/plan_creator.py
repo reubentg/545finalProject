@@ -125,10 +125,10 @@ def main():
                     # orange path
                     [2600, 660, 20.0 * np.pi / 180.0], # REQUIRED Point 1
                     # yellow path
-                    [2620, 600, 125.0 * np.pi / 180.0],
+                    [2615, 590, 125.0 * np.pi / 180.0],
                     # [2410, 485, 160 * np.pi / 180.0], # end of yellow path
                     # green path
-                    [1970, 400, -150 * np.pi / 180.0], # end of green path
+                    [1965, 400, -150 * np.pi / 180.0], # end of green path
                     # blue path
                     [1880, 440,-150 * np.pi / 180.0], # REQUIRED Point 2
                     # purple path
@@ -144,21 +144,22 @@ def main():
                     ] # REQUIRED Point 5 (END)
 
     for i in range(0, len(path_points) - 1):
-        rospy.sleep(13)  # wait for planner_node to load or respawnn
+        rospy.sleep(15)  # wait for planner_node to load or respawnn
         # raw_input("\n\nPRESS ENTER WHEN READY TO PLAN\n\n")
         initial_pose = path_points[i]
         goal_pose = path_points[i + 1]
         individual_plan_parts.append(get_plan(initial_pose, goal_pose, i))
         if i != len(path_points) - 2:
             os.system('rosnode kill planner_node')
-        rospy.sleep(1)
-            # launch nodes from python
-            # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
-        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        roslaunch.configure_logging(uuid)
-        planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [PLANNER_PKG_PATH +
-                                                                      "/launch/planner_node.launch"])
-        planner_node_launch.start()
+        # if planner_node doesn't autorespawn then use this:
+        # rospy.sleep(1)
+        #     # launch nodes from python
+        #     # https://answers.ros.org/question/263862/if-it-possible-to-launch-a-launch-file-from-python/
+        # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        # roslaunch.configure_logging(uuid)
+        # planner_node_launch = roslaunch.parent.ROSLaunchParent(uuid, [PLANNER_PKG_PATH +
+        #                                                               "/launch/planner_node.launch"])
+        # planner_node_launch.start()
 
 
 
@@ -188,7 +189,7 @@ def main():
 
     # save plan_array to file
     # save plan PoseArray msg to file
-    file_temp = open('/home/tim/car_ws/src/final/saved_plans/plan4', 'w')
+    file_temp = open('/home/tim/car_ws/src/final/saved_plans/plan5', 'w')
     pickle.dump([plan_array, PA], file_temp)
     file_temp.close()
 
