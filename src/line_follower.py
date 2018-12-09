@@ -84,6 +84,9 @@ class LineFollower:
         # # print "error_buff length: ", len(self.error_buff)
         # # print "error_buff: ", self.error_buff
 
+        self.min_delta = 99.99
+        self.max_delta = -99.99
+
         # YOUR CODE HERE
         self.cmd_pub = rospy.Publisher(PUB_TOPIC, AckermannDriveStamped,
                                        queue_size=10)  # Create a publisher to PUB_TOPIC
@@ -448,21 +451,27 @@ class LineFollower:
         except IOError:
             pass
         # if computer vision angle is published then use that angle
+        pid_angle = self.compute_steering_angle(error)
         if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0 and self.error < 2:
         # if True:
             delta = self.angle_from_computer_vision
-            try:
-                f.write("CV ANGLE: " + str(delta))
-            except (IOError, AttributeError):
-                print "CV ANGLE: ", delta
+            print "CV ANGLE chosen: ", delta
         else:   # if computer vision angle is not published then use pid controller angle
-            delta = self.compute_steering_angle(error)
-            try:
-                f.write("PID ANGLE: " + str(delta))
-            except (IOError, AttributeError):
-                print "PID ANGLE: ", delta
+            delta = pid_angle
+            print "PID ANGLE chosen: ", delta
 
-        # print "delta is %f" % delta
+        try:
+            f.write("CV ANGLE: " + str(delta) + "\tPID ANGLE" + str(pid_angle))
+        except (IOError, AttributeError):
+            pass
+
+        if delta < self.min_delta:
+            self.min_delta = delta
+        if delta > self.max_delta:
+            self.max_delta = delta
+
+        print 'min=%f and max=%f' % (self.min_delta, self.max_delta)
+
         #
         if True: # not using laser_wanderer_robot.launch
             # Setup the control message
