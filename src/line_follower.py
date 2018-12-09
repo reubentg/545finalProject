@@ -481,7 +481,7 @@ class LineFollower:
             ads.header.frame_id = '/map'
             ads.header.stamp = rospy.Time.now()
             ads.drive.steering_angle = delta
-            ads.drive.speed = self.speed
+            ads.drive.speed = 2.0
             self.cmd_pub.publish(ads)
 
 
