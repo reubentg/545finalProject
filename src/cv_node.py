@@ -9,7 +9,7 @@ import cv2
 
 BLUE_FILTER_TOPIC = '/cv_node/blue_data'
 RED_FILTER_TOPIC = '/cv_node/red_data'
-
+DEBUG = False
 
 # Applies a filter to images received on a specified topic and publishes the filtered image
 class CVNode:
@@ -71,10 +71,11 @@ class CVNode:
             print 'Blue angle:%f Blue radius:%f ' % (blue_angle, blue_radius),
 
             # only proceed if the radius meets a minimum size
-            if blue_radius > 10:
-                # draw the circle and centroid on the frame, then update the list of tracked points
-                cv2.circle(in_image, center, int(blue_radius), (0, 255, 255), 2)
-                cv2.circle(in_image, center, 5, (0, 0, 255), -1)
+            if DEBUG:
+                if blue_radius > 10:
+                    # draw the circle and centroid on the frame, then update the list of tracked points
+                    cv2.circle(in_image, center, int(blue_radius), (0, 255, 255), 2)
+                    cv2.circle(in_image, center, 5, (0, 0, 255), -1)
 
         for c in cnts_blue:
             cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
@@ -93,11 +94,12 @@ class CVNode:
 
             print 'Red angle:%f Red radius:%f ' % (angle_red, red_radius),
 
-            # only proceed if the radius meets a minimum size
-            if red_radius > 10:
-                # draw the circle and centroid on the frame, then update the list of tracked points
-                cv2.circle(in_image, center, int(red_radius), (0, 0, 255), 2)
-                cv2.circle(in_image, center, 5, (0, 255, 0), -1)
+            if DEBUG:
+                # only proceed if the radius meets a minimum size
+                if red_radius > 10:
+                    # draw the circle and centroid on the frame, then update the list of tracked points
+                    cv2.circle(in_image, center, int(red_radius), (0, 0, 255), 2)
+                    cv2.circle(in_image, center, 5, (0, 255, 0), -1)
         print ""
         for c in cnts_red:
             cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
@@ -117,7 +119,7 @@ class CVNode:
 
 
 if __name__ == '__main__':
-
+    DEBUG = rospy.get_param('~Debug', False)
     rospy.init_node('cv_node', anonymous=True)
 
     # Populate params with values passed by launch file

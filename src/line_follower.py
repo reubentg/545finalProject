@@ -442,14 +442,25 @@ class LineFollower:
                 np.savetxt("/home/joe/Desktop/Error_1.csv", np.array(self.total_error_list), delimiter=",")
 
             return 0
+        f = None
+        try:
+            f = open('/home/nvidia/line_follower.log', 'w')
+        except IOError:
+            pass
         # if computer vision angle is published then use that angle
         if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0 and self.error < 2:
         # if True:
             delta = self.angle_from_computer_vision
-            print "CV ANGLE: ", delta
+            try:
+                f.write("CV ANGLE: " + str(delta))
+            except IOError:
+                print "CV ANGLE: ", delta
         else:   # if computer vision angle is not published then use pid controller angle
             delta = self.compute_steering_angle(error)
-            print "PID ANGLE:", delta
+            try:
+                f.write("PID ANGLE: " + str(delta))
+            except IOError:
+                print "PID ANGLE: ", delta
 
         # print "delta is %f" % delta
         #
