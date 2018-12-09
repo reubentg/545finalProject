@@ -137,7 +137,7 @@ def main():
                     # orange path
                     [1520, 600, -175 * np.pi / 180.0], # end of yellow
                     [1435, 545, 160 * np.pi / 180.0], # REQUIRED Point 3, end of green
-                    [1300, 460, 160 * np.pi / 180.0], # REQUIRED Point 4, end of cyan
+                    [1350, 440, 160 * np.pi / 180.0], # REQUIRED Point 4, end of cyan
                     [1050, 450, -160.0 * np.pi / 180.0], # end of purple
                     [650.0, 650.0, -120 * np.pi / 180.0], # end of violet
                     [540, 835, -120 * np.pi / 180.0] # end of cyan
