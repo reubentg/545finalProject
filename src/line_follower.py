@@ -116,6 +116,11 @@ class LineFollower:
         self.float_red_sub = rospy.Subscriber(RED_FILTER_TOPIC, Float64, self.float_cb_red)
         self.error = 0.0
 
+        try:
+            self.f = open('/home/nvidia/line_follower.log', 'w')
+        except IOError:
+            pass
+
         # Create a publisher to publish the initial pose
         init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped,
                                         queue_size=1)  # to publish init position x=2500, y=640
@@ -446,14 +451,11 @@ class LineFollower:
 
             return 0
         f = None
-        try:
-            f = open('/home/nvidia/line_follower.log', 'w')
-        except IOError:
-            pass
+
         # if computer vision angle is published then use that angle
         pid_angle = self.compute_steering_angle(error)
-        if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0 and self.error < 2:
-        # if True:
+        # if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0 and self.error < 2:
+        if False:
             delta = self.angle_from_computer_vision
             print "CV ANGLE chosen: ", delta
         else:   # if computer vision angle is not published then use pid controller angle
@@ -461,7 +463,7 @@ class LineFollower:
             print "PID ANGLE chosen: ", delta
 
         try:
-            f.write("CV ANGLE: " + str(delta) + "\tPID ANGLE" + str(pid_angle))
+            self.f.write("CV ANGLE: " + str(delta) + "\tPID ANGLE" + str(pid_angle))
         except (IOError, AttributeError):
             pass
 
