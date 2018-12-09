@@ -111,6 +111,7 @@ class LineFollower:
 
         self.float_blue_sub = rospy.Subscriber(BLUE_FILTER_TOPIC, Float64, self.float_cb_blue)
         self.float_red_sub = rospy.Subscriber(RED_FILTER_TOPIC, Float64, self.float_cb_red)
+        self.error = 0.0
 
         # Create a publisher to publish the initial pose
         init_pose_pub = rospy.Publisher(INIT_POSE_TOPIC, PoseWithCovarianceStamped,
@@ -415,6 +416,7 @@ class LineFollower:
         #                 self.plan.pop(0)
 
         success, error = self.compute_error(cur_pose)
+        self.error = error
         # print "Success, Error: ", success, error
 
         if not success:
@@ -441,7 +443,7 @@ class LineFollower:
 
             return 0
         # if computer vision angle is published then use that angle
-        if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0:
+        if self.angle_from_computer_vision is not None and self.angle_from_computer_vision > -98.0 and self.error < 2:
         # if True:
             delta = self.angle_from_computer_vision
             print "CV ANGLE: ", delta
