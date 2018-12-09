@@ -83,7 +83,7 @@ class CVNode:
         if 20.0 < blue_angle < 200.0:
             self.pub_saw_blue.publish(blue_angle)
         else:
-            self.pub_saw_blue.publish(99.99)
+            self.pub_saw_blue.publish(-99.99)
 
         if len(cnts_red) > 5:
             maxcontour = max(cnts_red, key=cv2.contourArea)
