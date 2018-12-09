@@ -514,7 +514,7 @@ def main():
     ki = rospy.get_param('~ki')  # Starting val: 0.0
     kd = rospy.get_param('~kd')  # Starting val: 0.0
     error_buff_length = rospy.get_param('~error_buff_length')  # Starting val: 10
-    speed = rospy.get_param('~speed')  # Default val: 1.0
+    speed = 2.0 # rospy.get_param('~speed')  # Default val: 1.0
 
     loadFinalPlan = True # set this to True to use preexisting plan instead of creating a new one in RVIZ
     if not loadFinalPlan: # make new plan in RVIZ by setting initial and goal poses
