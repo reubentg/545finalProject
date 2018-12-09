@@ -534,7 +534,7 @@ def main():
     else: # use preexisting plan from plan_creator.launch and plan_cleanup.launch
         # # # print "Len of plan array: %d" % len(plan_array)
         # # # # print plan_array
-        plan_relative_path = "/saved_plans/plan4"
+        plan_relative_path = "/saved_plans/plan_12_9_2018"
         # load plan_array
         # load raw_plan msg (PoseArray)
         loaded_vars = pickle.load(open(CURRENT_PKG_PATH + plan_relative_path, "r"))
