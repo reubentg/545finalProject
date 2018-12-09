@@ -453,13 +453,13 @@ class LineFollower:
             delta = self.angle_from_computer_vision
             try:
                 f.write("CV ANGLE: " + str(delta))
-            except IOError:
+            except (IOError, AttributeError):
                 print "CV ANGLE: ", delta
         else:   # if computer vision angle is not published then use pid controller angle
             delta = self.compute_steering_angle(error)
             try:
                 f.write("PID ANGLE: " + str(delta))
-            except IOError:
+            except (IOError, AttributeError):
                 print "PID ANGLE: ", delta
 
         # print "delta is %f" % delta
