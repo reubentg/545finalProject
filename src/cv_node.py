@@ -66,7 +66,7 @@ class CVNode:
             maxcontour = max(cnts_blue, key=cv2.contourArea)
             ((x, y), blue_radius) = cv2.minEnclosingCircle(maxcontour)
             center = (int(x), int(y))
-            blue_angle = np.arctan2(x - 320, 480 - y)
+            blue_angle = -1.0 * np.arctan2(x - 320, 480 - y)
 
             print 'Blue angle:%f Blue radius:%f ' % (blue_angle, blue_radius),
 
@@ -89,7 +89,7 @@ class CVNode:
             maxcontour = max(cnts_red, key=cv2.contourArea)
             ((x, y), red_radius) = cv2.minEnclosingCircle(maxcontour)
             center = (int(x), int(y))
-            angle_red = np.arctan2(x - 320, 480 - y)
+            angle_red = -1.0 * np.arctan2(x - 320, 480 - y)
 
             print 'Red angle:%f Red radius:%f ' % (angle_red, red_radius),
 
