@@ -76,10 +76,10 @@ class CVNode:
                     # draw the circle and centroid on the frame, then update the list of tracked points
                     cv2.circle(in_image, center, int(blue_radius), (0, 255, 255), 2)
                     cv2.circle(in_image, center, 5, (0, 0, 255), -1)
-
-        for c in cnts_blue:
-            cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
-            cv2.drawContours(thresh_blue, [c], -1, (0, 255, 0), 1)
+        if DEBUG:
+            for c in cnts_blue:
+                cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
+                cv2.drawContours(thresh_blue, [c], -1, (0, 255, 0), 1)
 
         if 20.0 < blue_radius < 220.0:
             self.pub_saw_blue.publish(blue_angle)
@@ -101,9 +101,10 @@ class CVNode:
                     cv2.circle(in_image, center, int(red_radius), (0, 0, 255), 2)
                     cv2.circle(in_image, center, 5, (0, 255, 0), -1)
         print ""
-        for c in cnts_red:
-            cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
-            cv2.drawContours(thresh_red, [c], -1, (0, 255, 0), 1)
+        if DEBUG:
+            for c in cnts_red:
+                cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
+                cv2.drawContours(thresh_red, [c], -1, (0, 255, 0), 1)
 
         if red_radius > 50:
             self.pub_saw_red.publish(angle_red)
