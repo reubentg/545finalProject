@@ -440,7 +440,7 @@ class LineFollower:
 
             return 0
         # if computer vision angle is published then use that angle
-        if self.angle_from_computer_vision is not None or self.angle_from_computer_vision != -99.99:
+        if self.angle_from_computer_vision is not None and not (-100.0 < self.angle_from_computer_vision < -98.0):
             delta = self.angle_from_computer_vision
             print "CV ANGLE: ", delta
         else:   # if computer vision angle is not published then use pid controller angle
