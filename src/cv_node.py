@@ -69,7 +69,7 @@ class CVNode:
             blue_angle = np.arctan2(x - 320, 480 - y)
 
             print 'Blue angle:%f Blue radius:%f ' % (blue_angle, blue_radius),
-           
+
             # only proceed if the radius meets a minimum size
             if blue_radius > 10:
                 # draw the circle and centroid on the frame, then update the list of tracked points
