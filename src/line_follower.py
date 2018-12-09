@@ -139,7 +139,7 @@ class LineFollower:
         pass
 
     def float_cb_blue(self, msg):
-        print "BLUE cb", msg.data
+        # print "BLUE cb", msg.data
         self.angle_from_computer_vision = msg.data
 
     def new_init_pose_cb(self, msg):

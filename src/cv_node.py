@@ -68,8 +68,8 @@ class CVNode:
             center = (int(x), int(y))
             blue_angle = np.arctan2(x - 320, 480 - y)
 
-            print 'Blue angle:%f Blue radius:%f ' % (blue_angle, blue_radius)
-
+            print 'Blue angle:%f Blue radius:%f ' % (blue_angle, blue_radius),
+           
             # only proceed if the radius meets a minimum size
             if blue_radius > 10:
                 # draw the circle and centroid on the frame, then update the list of tracked points
@@ -80,7 +80,7 @@ class CVNode:
             cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
             cv2.drawContours(thresh_blue, [c], -1, (0, 255, 0), 1)
 
-        if 20.0 < blue_angle < 200.0:
+        if 20.0 < blue_radius < 220.0:
             self.pub_saw_blue.publish(blue_angle)
         else:
             self.pub_saw_blue.publish(-99.99)
@@ -91,14 +91,14 @@ class CVNode:
             center = (int(x), int(y))
             angle_red = np.arctan2(x - 320, 480 - y)
 
-            print 'Red angle:%f Red radius:%f ' % (angle_red, red_radius)
+            print 'Red angle:%f Red radius:%f ' % (angle_red, red_radius),
 
             # only proceed if the radius meets a minimum size
             if red_radius > 10:
                 # draw the circle and centroid on the frame, then update the list of tracked points
                 cv2.circle(in_image, center, int(red_radius), (0, 0, 255), 2)
                 cv2.circle(in_image, center, 5, (0, 255, 0), -1)
-
+        print ""
         for c in cnts_red:
             cv2.drawContours(in_image, [c], -1, (0, 255, 0), 1)  # draws the Conture lines
             cv2.drawContours(thresh_red, [c], -1, (0, 255, 0), 1)
