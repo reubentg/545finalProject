@@ -141,7 +141,8 @@ class LineFollower:
         # Create a subscriber to pose_topic, with callback 'self.pose_cb'
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_cb)
         # print "inside line_follower, constructor end"
-
+        
+        # This part is not used anymore. Old code. 
         self.new_init_pos = rospy.Subscriber(INIT_POSE_TOPIC, PoseWithCovarianceStamped, self.new_init_pose_cb)
 
     def float_cb_red(self, msg):
@@ -184,7 +185,9 @@ class LineFollower:
         # # print "Computing error..."
         # check the leftmost pose in the plan pose-array and if it is behind the car then delete it
         if len(self.plan) > 0:
-
+            # This is the ta_lab1 solution code to delete poses behind the robot.
+            # Our solution is commented our below. 
+            # Both produce identitical results.
             rot_mat = utils.rotation_matrix(-1 * cur_pose[2])
             while len(self.plan) > 0:
                 distance = np.sqrt(np.square(cur_pose[0] - self.plan[0][0]) + np.square(cur_pose[1] - self.plan[0][1]))
